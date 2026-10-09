@@ -147,9 +147,7 @@ def dashboard(c, actor):
 <div class=\"grid3\"><div class=\"card\"><div class=\"label\">Suppliers</div><div class=\"kpi\">{suppliers_n}</div></div><div class=\"card\"><div class=\"label\">Installations</div><div class=\"kpi\">{installations_n}</div></div><div class=\"card\"><div class=\"label\">Source documents</div><div class=\"kpi\">{docs_n}</div></div></div>
 <div class=\"card section\"><h2>Commercial exposure control</h2><p class=\"muted small\">Latest published CBAM certificate price: <b>€{util.esc(latest_price['price_eur'] if latest_price else '—')}/tCO2e</b>. Exposure is scenario-only and uses the exact price stored with each calculation.</p><div class=\"kpi\">{util.money(exposure)}</div></div>\"\"\"
     updates = c.execute(\"SELECT * FROM regulatory_updates WHERE status='ACTIVE' ORDER BY announced_date DESC LIMIT 4\").fetchall()
-    body += '<div class=\\\"card section\\\"><h2>Regulatory changes that affect the product</h2>'
     body += '<div class="card section"><h2>Regulatory changes that affect the product</h2>'
-        body += f'<div class=\\\"warnbox small\\\"><b>{util.esc(u[\\\"title\\\"])}</b><br>{util.esc(u[\\\"impact\\\"])} <span class=\\\"muted\\\">Product: {util.esc(u[\\\"product_implication\\\"])}</span></div>'
         body += f'<div class="warnbox small"><b>{util.esc(u["title"])}</b><br>{util.esc(u["impact"])} <span class="muted">Product: {util.esc(u["product_implication"])}</span></div>'
     body += '<div class=\\\"card section\\\"><h2>Case portfolio</h2><table><tr><th>Case</th><th>Period</th><th>Readiness</th><th>Blockers</th><th></th></tr>'
     body += '<div class="card section"><h2>Case portfolio</h2><table><tr><th>Case</th><th>Period</th><th>Readiness</th><th>Blockers</th><th></th></tr>'
