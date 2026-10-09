@@ -28,5 +28,6 @@
   "full_binding_annex_reconciliation_complete": false,
   "full_binding_annex_machine_reconciliation_complete": false,
   "full_source_tree_published": false,
-  "full_binding_annex_reconciliation_status": "NOT_VERIFIED_AS_EXECUTED"
+  "full_binding_annex_reconciliation_status": "NOT_VERIFIED_AS_EXECUTED",
+  "legal_data_promoted": false
 }
