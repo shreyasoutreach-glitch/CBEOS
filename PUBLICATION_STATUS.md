@@ -2,26 +2,39 @@
 
 Updated 10 October 2026 (IST).
 
-## Current state
-
-The public repository contains the app runtime modules, regression tests, the acquired-source reconciliation tool, golden cases, governance docs, and GitHub Actions workflows. The complete local engineering workspace, raw workbook inputs, and full row-level CSV exports are not published, so this is still a partial source publication.
+## Current candidate
 
 - Repository: https://github.com/shreyasoutreach-glitch/CBEOS
-- Latest verified green run at the time of this update: https://github.com/shreyasoutreach-glitch/CBEOS/actions/runs/37981451471 on commit `335886a7e3d7a6a1d1d5f0a1f8edaeaf5492906e`. It passed dependency audit, Python compilation, and the full remote test runner. Any subsequent commit must be re-verified before release.
-- Latest EUR-Lex acquisition/extraction run: https://github.com/shreyasoutreach-glitch/CBEOS/actions/runs/37979394337
-- Unreviewed source artifact: https://github.com/shreyasoutreach-glitch/CBEOS/actions/runs/37979394337/artifacts/11641145249
-- Artifact SHA-256: b5ac905c33c19bf5968e0e33ef97946ef0038d7256d1632e361c96e5f5661862. Retention expires 16 October 2026.
+- Megasprint branch: `meg-sprint/client-outcome-closeout-2026-10-10`
+- Latest known green main-branch run before this sprint: https://github.com/shreyasoutreach-glitch/CBEOS/actions/runs/37981524399 on commit `c5f8a1d7534685db5fe8af07f86d1629681239f3`.
+- **This megasprint branch has not yet been verified by CI.** Do not treat the earlier green run as validation of these changes.
+- Official-source acquisition/extraction run: https://github.com/shreyasoutreach-glitch/CBEOS/actions/runs/37979394337
+- Reported artifact SHA-256: `b5ac905c33c19bf5968e0e33ef97946ef0038d7256d1632e361c96e5f5661862`. The previously recorded retention expiry is 16 October 2026.
 
-## Regulatory boundary
+## What changed in the client-outcomes megasprint
 
-Five official EUR-Lex HTML sources were retrieved with HTTP 200 and table rows extracted with source file/hash, table number and row number. This is raw source acquisition, not legal interpretation or canonical dataset approval. Extracted HTML row counts are not legal-record counts and do not prove complete annex coverage.
+- The control-tower dashboard now includes an explicit sandbox/human-control boundary.
+- Four guided routes direct an operator to cases, supplier evidence, exception triage and verification readiness.
+- An outcome snapshot surfaces blocked import lines, high-severity exceptions and overdue supplier requests using tenant workflow counts.
+- Regression assertions were added for these dashboard states. They remain **CI pending**.
 
-The staged workbook pipeline contains 14,627 records. A row-level machine comparison now matches Annex I defaults (12,540), Annex IV precursor defaults (283), and benchmark rows including continuations (1,804) to extracted EUR-Lex table cells, with zero mismatches or ambiguous keys. Summary: https://github.com/shreyasoutreach-glitch/CBEOS/blob/main/staging/output/acquired_source_reconciliation_summary.json. Six independent golden arithmetic/selector cases pass: https://github.com/shreyasoutreach-glitch/CBEOS/blob/main/staging/output/golden_calculation_review_report.json. The extracted source remains EXTRACTED_UNREVIEWED; machine matching is not legal sign-off, and no legal dataset has been promoted.
+## Regulatory and source boundary
+
+Five official EUR-Lex HTML sources were previously fetched and raw table rows extracted with source hashes/locators. This establishes acquisition, not legal interpretation or canonical dataset approval.
+
+**Full row-level reconciliation is not verified as executed.** Earlier public wording claiming that all 14,627 staged rows matched extracted EUR-Lex cells was unsupported by reproducible execution evidence available for this hand-off. Treat the reconciliation tool as prepared but execution unverified until it is run against the actual archived source artifact and source workbooks, with its output retained and independently reviewed. Seven curated binding-source spot checks were previously reported; that is not full coverage.
+
+No canonical regulatory dataset has been approved or promoted. Arithmetic fixtures do not prove legal source correctness. No live CBAM liability calculation or filing reliance is authorized.
 
 ## Release decision
 
+- Client-outcomes dashboard code: **IMPLEMENTED ON MEGASPRINT BRANCH**
+- Branch CI and full regression suite: **NOT RUN / PENDING**
+- Full legal-source reconciliation: **NOT VERIFIED AS EXECUTED**
+- Antigravity independent verification: **NOT RUN**
 - Production deployment: **NO-GO**
+- Sandbox deployment: **PENDING APPLICATION/SECURITY GATES**
 - Live legal/financial reliance: **NO-GO**
-- Continued engineering and independent review: **GO**
+- Client outreach: **NOT AUTHORIZED UNTIL DEMO AND INDEPENDENT REVIEW GATES PASS**
 
-Do not deploy until the current HEAD has a green remote CI run, full legal source reconciliation is independently reviewed, golden calculation cases pass against an approved immutable dataset, production configuration and secrets are reviewed, off-host recovery is demonstrated, and Antigravity independently verifies the exact commit and artifact.
+A green CI run validates only the tested commit and checks. It does not certify legal correctness, production security, or zero defects.
