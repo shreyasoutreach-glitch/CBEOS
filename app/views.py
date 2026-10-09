@@ -668,10 +668,6 @@ def verification_overview(c, actor):
                  f'<td><a class="btn secondary small" href="/installation/{i["id"]}">Open</a></td></tr>')
     body += '</table></div>'
     return layout(actor, 'Verification', body, 'verification')
-ot rows:
-        body += '<tr><td colspan="5" class="muted">No installations yet.</td></tr>'
-    body += '</table></div>'
-    return layout(actor, 'Verification', body, 'verification')
 
 
 # ---------------------------------------------------------------------------
