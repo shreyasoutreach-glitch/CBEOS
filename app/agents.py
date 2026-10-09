@@ -317,3 +317,63 @@ def run_case_workflow(c, tenant_id: int, case_id: int, user_id: int) -> dict:
         outputs['intake'] = baseline
         msg = f"Baseline established: {baseline['documents']} source documents, {baseline['import_lines']} import lines, {baseline['candidate_facts']} candidate facts awaiting human review, {baseline['verified_facts']} verified facts. No extracted fact was promoted by this workflow. Evidence Quality Agent, assess missing requirements and provenance next."
         messages.append(_message(c,run_id,seq,'Intake & Scope Agent','Evidence Quality Agent',msg,baseline)); seq+=1
+        add_advisory('Intake & Scope Agent','Evidence Quality Agent',baseline)
+
+        reqs = c.execute("SELECT name,category,scope_type,scope_id,reason FROM evidence_requirements WHERE tenant_id=? AND case_id=? AND status='missing' AND applicability!='not_applicable' ORDER BY scope_type,name LIMIT 20",(tenant_id,case_id)).fetchall()
+        candidate_docs = c.execute("SELECT COUNT(*) FROM documents WHERE tenant_id=? AND case_id=? AND (extracted_text IS NULL OR trim(extracted_text)='')",(tenant_id,case_id)).fetchone()[0]
+        evidence = {'missing_requirement_count':_count(c,"SELECT COUNT(*) FROM evidence_requirements WHERE tenant_id=? AND case_id=? AND status='missing' AND applicability!='not_applicable'",(tenant_id,case_id)),
+                    'missing_requirements':[dict(r) for r in reqs], 'documents_without_text':int(candidate_docs),
+                    'human_review_required':baseline['candidate_facts']}
+        outputs['evidence'] = evidence
+        msg = f"Evidence review found {evidence['missing_requirement_count']} applicable missing requirements and {evidence['documents_without_text']} documents with no extracted text. Candidate facts remain candidates until a human reviewer verifies them. Supplier Operations Agent, inspect open supplier requests and deadlines; do not send messages or validate evidence."
+        messages.append(_message(c,run_id,seq,'Evidence Quality Agent','Supplier Operations Agent',msg,evidence)); seq+=1
+        add_advisory('Evidence Quality Agent','Supplier Operations Agent',evidence)
+
+        request_rows = c.execute("SELECT sr.id,sr.supplier_id,s.name supplier_name,sr.requirement_name,sr.title,sr.status,sr.deadline,sr.escalation_level,sr.updated FROM supplier_requests sr LEFT JOIN suppliers s ON s.id=sr.supplier_id AND s.tenant_id=sr.tenant_id WHERE sr.tenant_id=? AND sr.case_id=? ORDER BY CASE sr.status WHEN 'OVERDUE' THEN 0 WHEN 'SENT' THEN 1 WHEN 'DRAFT' THEN 2 ELSE 3 END,sr.deadline,sr.id",(tenant_id,case_id)).fetchall()
+        today = date.today().isoformat()
+        open_requests, overdue_requests = [], []
+        terminal_request_statuses = {'VALIDATED','CLOSED','CANCELLED','COMPLETE','COMPLETED'}
+        for row in request_rows:
+            item = dict(row)
+            status = str(item.get('status') or '').upper()
+            if status in terminal_request_statuses:
+                continue
+            overdue = status == 'OVERDUE'
+            if item.get('deadline'):
+                try:
+                    parsed_deadline = date.fromisoformat(str(item['deadline'])[:10])
+                    overdue = overdue or parsed_deadline.isoformat() < today
+                    item['deadline_parse_warning'] = False
+                except (TypeError,ValueError):
+                    item['deadline_parse_warning'] = True
+            else:
+                item['deadline_parse_warning'] = False
+            item['is_overdue'] = bool(overdue)
+            open_requests.append(item)
+            if overdue: overdue_requests.append(item)
+        supplier_ops = {'total_requests':len(request_rows),'open_request_count':len(open_requests),
+                        'overdue_request_count':len(overdue_requests),
+                        'requests':open_requests[:10], 'overdue_requests':overdue_requests[:8],
+                        'policy':'Draft or recommend follow-up only. This workflow does not send supplier emails, change request states or validate a response.'}
+        outputs['supplier_ops'] = supplier_ops
+        supplier_msg = f"Supplier Operations found {supplier_ops['open_request_count']} open request(s), including {supplier_ops['overdue_request_count']} overdue. No email was sent and no request status was changed. Reconciliation Agent, now rank conflicts and exceptions with supplier follow-up context."
+        messages.append(_message(c,run_id,seq,'Supplier Operations Agent','Reconciliation Agent',supplier_msg,supplier_ops)); seq+=1
+        add_advisory('Supplier Operations Agent','Reconciliation Agent',supplier_ops)
+
+        open_ex = c.execute("SELECT id,title,severity,status,category,detail,recommended_action,financial_impact_eur FROM exceptions WHERE tenant_id=? AND case_id=? AND status NOT IN ('RESOLVED','ACCEPTED_WITH_RISK','WAIVED') ORDER BY CASE severity WHEN 'high' THEN 0 WHEN 'medium' THEN 1 ELSE 2 END,id LIMIT 12",(tenant_id,case_id)).fetchall()
+        exception_totals = c.execute("SELECT COUNT(*) total, SUM(CASE WHEN severity='high' THEN 1 ELSE 0 END) high_count FROM exceptions WHERE tenant_id=? AND case_id=? AND status NOT IN ('RESOLVED','ACCEPTED_WITH_RISK','WAIVED')",(tenant_id,case_id)).fetchone()
+        exception_actions = []
+        for row in open_ex[:5]:
+            priority = 'P0' if row['severity'] == 'high' else ('P1' if row['severity'] == 'medium' else 'P2')
+            action = (row['recommended_action'] or '').strip() or 'Review supporting and conflicting source evidence, confirm the affected scope, and record a reasoned human resolution.'
+            exception_actions.append({'exception_id':row['id'],'title':row['title'],'severity':row['severity'],
+                                      'priority':priority,'recommended_action':action,
+                                      'financial_impact_eur':row['financial_impact_eur'] or 'Not quantified'})
+        conflicts = {'open_exception_count':int(exception_totals['total'] or 0), 'high_severity_count':int(exception_totals['high_count'] or 0),
+                     'top_exceptions':[dict(r) for r in open_ex], 'sampled_exception_count':len(open_ex),
+                     'exception_actions':exception_actions,
+                     'action':'Resolve source conflicts and scope mismatches before treating affected values as reliable.' if open_ex else 'No currently open exception rows were found; absence of exceptions is not proof of compliance.'}
+        outputs['reconciliation'] = conflicts
+        msg = f"Reconciliation reports {conflicts['open_exception_count']} open exceptions, including {conflicts['high_severity_count']} high-severity items overall. The displayed exception sample is capped at 12 for readability. I have not closed or accepted any issue. Regulatory Research Agent, find relevant source passages for {case['sector']} and the reporting period, and return citations rather than unsupported conclusions."
+        messages.append(_message(c,run_id,seq,'Reconciliation Agent','Regulatory Research Agent',msg,conflicts)); seq+=1
+        add_advisory('Reconciliation Agent','Regulato
