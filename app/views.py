@@ -149,16 +149,16 @@ def dashboard(c, actor):
     updates = c.execute(\"SELECT * FROM regulatory_updates WHERE status='ACTIVE' ORDER BY announced_date DESC LIMIT 4\").fetchall()
     body += '<div class="card section"><h2>Regulatory changes that affect the product</h2>'
         body += f'<div class="warnbox small"><b>{util.esc(u["title"])}</b><br>{util.esc(u["impact"])} <span class="muted">Product: {util.esc(u["product_implication"])}</span></div>'
-    body += '<div class=\\\"card section\\\"><h2>Case portfolio</h2><table><tr><th>Case</th><th>Period</th><th>Readiness</th><th>Blockers</th><th></th></tr>'
+    body += '<div class="card section"><h2>Case portfolio</h2><table><tr><th>Case</th><th>Period</th><th>Readiness</th><th>Blockers</th><th></th></tr>'
     body += '<div class="card section"><h2>Case portfolio</h2><table><tr><th>Case</th><th>Period</th><th>Readiness</th><th>Blockers</th><th></th></tr>'
         sc, rd = engine.readiness(c, tid, x['id'])
         cls = 'good' if rd['ready'] else ('warn' if sc >= 60 else 'bad')
-        body += f'<tr><td><b>{util.esc(x[\\\"case_name\\\"])}</b><div class=\\\"muted small\\\">{util.esc(x[\\\"company\\\"])} · {util.esc(x[\\\"sector\\\"] or \\\"sector not set\\\")}</div></td><td>{util.esc(x[\\\"period\\\"])}</td><td><span class=\\\"pill {cls}\\\">{sc}%</span></td><td class=\\\"small\\\">{util.esc(\\\" · \\\".join(rd[\\\"blockers\\\"][:3]) or \\\"No current blockers\\\")}</td><td><a class=\\\"btn secondary\\\" href=\\\"/case/{x[\\\"id\\\"]}\\\">Open</a></td></tr>'
+        body += f'<tr><td><b>{util.esc(x["case_name"])}</b><div class="muted small">{util.esc(x["company"])} · {util.esc(x["sector"] or "sector not set")}</div></td><td>{util.esc(x["period"])}</td><td><span class="pill {cls}">{sc}%</span></td><td class="small">{util.esc(" · ".join(rd["blockers"][:3]) or "No current blockers")}</td><td><a class="btn secondary" href="/case/{x["id"]}">Open</a></td></tr>'
     body += '</table></div>'
     top_exceptions = c.execute(\"SELECT * FROM exceptions WHERE tenant_id=? AND status NOT IN ('RESOLVED','ACCEPTED_WITH_RISK','WAIVED') ORDER BY CASE severity WHEN 'high' THEN 0 WHEN 'medium' THEN 1 ELSE 2 END,id DESC LIMIT 8\", (tid,)).fetchall()
-    body += '<div class=\\\"card section\\\"><h2>Highest-priority exceptions</h2><table><tr><th>Title</th><th>Severity</th><th>Status</th><th>Owner</th><th></th></tr>'
+    body += '<div class="card section"><h2>Highest-priority exceptions</h2><table><tr><th>Title</th><th>Severity</th><th>Status</th><th>Owner</th><th></th></tr>'
     for e in top_exceptions:
-        body += f'<tr><td><b>{util.esc(e[\\\"title\\\"])}</b><div class=\\\"muted small\\\">{util.esc(e[\\\"detail\\\"])[:110]}</div></td><td>{pill_for_status(e[\\\"severity\\\"])}</td><td>{pill_for_status(e[\\\"status\\\"])}</td><td>{util.esc(e[\\\"owner\\\"])}</td><td><a class=\\\"btn secondary small\\\" href=\\\"/case/{e[\\\"case_id\\\"]}\\\">Open case</a></td></tr>'
+        body += f'<tr><td><b>{util.esc(e["title"])}</b><div class="muted small">{util.esc(e["detail"])[:110]}</div></td><td>{pill_for_status(e["severity"])}</td><td>{pill_for_status(e["status"])}</td><td>{util.esc(e["owner"])}</td><td><a class="btn secondary small" href="/case/{e["case_id"]}">Open case</a></td></tr>'
     body += '</table></div>'
     return layout(actor, 'Overview', body, 'overview')
 
