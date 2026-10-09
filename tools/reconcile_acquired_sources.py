@@ -16,6 +16,10 @@ def code(x):
     return "".join(ch for ch in str(x or "") if ch.isdigit())
 def txt(x):
     return " ".join(str(x or "").strip().casefold().replace("’", "'").replace("&", "and").split())
+def country(x):
+    s=txt(x)
+    return {"_other countries and territorie":"other countries and territories",
+            "other countries and territories":"other countries and territories"}.get(s,s)
 def sector(x):
     s=txt(x)
     return {"iron and steel":"iron_steel","fertilisers":"fertilisers","fertilizers":"fertilisers"}.get(s,s.replace(" ","_"))
@@ -56,7 +60,7 @@ def build_defaults(src):
                "direct":dec(c[2]),"indirect":dec(c[3]),"total":dec(c[4]),
                "direct_raw":c[2],"indirect_raw":c[3],"total_raw":c[4],"table":tn,"row":r.get("row_no"),
                "source_sha256":r.get("source_sha256","")}
-            annex1.append(x);idx[(x["country"],sec,cd,x["route"])].append(x)
+            annex1.append(x);idx[(country(x["country"]),sec,cd,x["route"])].append(x)
     sec=""
     for r in tables.get(162,[]):
         c=r.get("cells") or []
@@ -96,7 +100,7 @@ def run(src,out):
     for r in jl(out/"default_values_staged.jsonl"):
         kind=r.get("record_type"); s=sector(r.get("sector")); cd=code(r.get("code"));issues=[];canon=None
         if kind=="annex_i_default":
-            key=(txt(r.get("country")),s,cd,route(r.get("route")));m=didx.get(key,[])
+            key=(country(r.get("country")),s,cd,route(r.get("route")) );m=didx.get(key,[])
             if len(m)!=1: status="SOURCE_ROW_NOT_UNIQUE";issues=[f"source_matches={len(m)}"]
             else:
                 canon=m[0]
