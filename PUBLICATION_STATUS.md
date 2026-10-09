@@ -1,9 +1,11 @@
 # GitHub publication status
 
-This branch currently contains only a partial publication of the local engineering workspace. The production app modules (`app/db.py`, `app/engine.py`, `app/agents.py`, `app/views.py`), tests, tools and full knowledge index have not all been published yet. Do not deploy or treat this repository snapshot as runnable.
+Updated 2026-10-10. This is an engineering candidate on `main`, not a production release.
 
-The GitHub Actions workflow has run. `pip-audit` completed with “No known vulnerabilities found” for the dependency environment represented by the currently published `requirements.txt`; `compileall` completed but warned that `tools` and `tests` were missing. The test step failed because `tests/run_all.py` does not exist on this branch yet. This is a repository completeness failure, not a passing product test.
-
-Local workspace verification is separately recorded in `RELEASE_STATUS.json`: 9 local test suites pass and compilation passes. These results are not equivalent to remote verification until the full source tree is published and Actions passes.
-
-The regulatory dataset remains unpromoted. Seven curated legal binding-source spot checks do not establish full coverage of the 14,627 staged records; 14,620 records remain pending canonical reconciliation.
+- Source repository: https://github.com/shreyasoutreach-glitch/CBEOS
+- Runtime modules, test runner, source governance, regulatory staging tools, and CI are published.
+- GitHub Actions now runs dependency auditing, Python compilation, and nine regression suites.
+- The remote pipeline has repeatedly caught syntax corruption introduced during the staged publication; those failures are being repaired before deployment.
+- Do not treat a green dependency audit as a passing application test. The latest CI status is authoritative.
+- Legal source data remains unpromoted. Seven curated legal binding-source spot checks do not establish full coverage of the 14,627 staged records. The 14,620 unmatched/pending records still require reconciliation against binding sources.
+- No production deployment, customer data, live regulatory calculation, legal sign-off, or outreach is authorized by this status file.
