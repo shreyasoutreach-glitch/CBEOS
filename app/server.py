@@ -154,4 +154,145 @@ def do_upload(h):
         path = os.path.join(dbm.UP, stored)
         stored_path = path
         with open(path, 'wb') as fh:
-            fh.wr
+            fh.write(data)
+        t = util.now()
+        mime = mimetypes.guess_type(fn)[0] or 'application/octet-stream'
+        meta['classification'] = {'suggested_type': doc_type_guess, 'confidence': conf}
+        c.execute('INSERT INTO documents(tenant_id,case_id,import_line_id,supplier_id,installation_id,filename,'
+                   'stored_name,mime,doc_type,size_bytes,sha256,uploaded,uploaded_by,extracted_text,meta_json) '
+                   'VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
+                   (tid, cid, line_id, supplier_id, installation_id, fn, stored, mime, fv(f, 'doc_type', 'other'),
+                    len(data), sha, t, a['user_id'], text, json.dumps(meta)))
+        did = c.execute('SELECT last_insert_rowid()').fetchone()[0]
+        found = extraction.infer_facts(text, meta)
+        for field, val, unit, loc, excerpt, confidence in found:
+            numeric = util.q(util.num(val)) if field in ('eu_tonnes', 'direct_intensity', 'indirect_intensity') else ''
+            c.execute('INSERT INTO facts(tenant_id,case_id,document_id,import_line_id,supplier_id,installation_id,'
+                       'field,value,numeric_value,unit,location,source_excerpt,confidence,status,created,updated) '
+                       'VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
+                       (tid, cid, did, line_id, supplier_id, installation_id, field, val, numeric, unit, loc, excerpt,
+                        confidence, 'candidate', t, t))
+        engine.run_reconciliation(c, tid, cid, a['user_id'])
+        engine.audit(c, tid, cid, a['user_id'], 'document_uploaded', f'{fn} sha256={sha} type~{doc_type_guess}({conf})')
+        c.commit()
+        c.close()
+        return h.redirect('/case/%s' % cid)
+    except ValueError as e:
+        import logging
+        logging.getLogger('cbeos.upload').info('Upload rejected: %s', str(e))
+        if c is not None:
+            try: c.rollback(); c.close()
+            except Exception: pass
+        if stored_path and os.path.exists(stored_path):
+            try: os.remove(stored_path)
+            except OSError: pass
+        return h.send('Upload rejected. Check the file format, size, and case associations.', 400)
+    except Exception:
+        import logging
+        logging.getLogger('cbeos.upload').exception('Upload processing failed')
+        if c is not None:
+            try: c.rollback(); c.close()
+            except Exception: pass
+        if stored_path and os.path.exists(stored_path):
+            try: os.remove(stored_path)
+            except OSError: pass
+        return h.send('Upload failed due to an internal processing error. No result was committed.', 500)
+
+
+def do_download(h, did):
+    a = require(h)
+    if not a:
+        return
+    c = dbm.db()
+    d = c.execute('SELECT * FROM documents WHERE id=? AND tenant_id=?', (did, a['tenant_id'])).fetchone()
+    c.close()
+    if not d:
+        return h.send('Not found', 404)
+    # stored_name is always sha256+ext (never derived from client-controlled path input)
+    path = os.path.join(dbm.UP, d['stored_name'])
+    safe_root = os.path.realpath(dbm.UP)
+    real_path = os.path.realpath(path)
+    if not real_path.startswith(safe_root + os.sep):
+        return h.send('Invalid path', 400)
+    if not os.path.exists(real_path):
+        return h.send('File missing from storage', 404)
+    with open(real_path, 'rb') as fh:
+        data = fh.read()
+    h.send_response(200)
+    h.send_header('Content-Type', d['mime'] or 'application/octet-stream')
+    h.send_header('Content-Disposition', f'attachment; filename="{re.sub(r"[^A-Za-z0-9._-]", "_", d["filename"])}"')
+    h.send_header('Content-Length', str(len(data)))
+    h.send_header('X-Content-Type-Options', 'nosniff')
+    h.end_headers()
+    h.wfile.write(data)
+
+
+def actor(h):
+    sid = h.cookies.get(security.SESSION_COOKIE).value if h.cookies.get(security.SESSION_COOKIE) else ''
+    return security.actor_from_session_id(sid)
+
+
+def require(h):
+    a = actor(h)
+    if not a:
+        h.redirect('/login')
+        return None
+    return a
+
+
+def handle_post(h, path):
+    a = require(h)
+    if not a:
+        return
+    f = parse_form(h)
+    tid, uid = a['tenant_id'], a['user_id']
+    c = dbm.db()
+    if not h.csrf_ok(f, a):
+        c.close()
+        return h.send('CSRF validation failed', 403)
+    try:
+        m = re.match(r'^/case/(\d+)/import/create$', path)
+        if m:
+            cid = int(m.group(1))
+            case = c.execute('SELECT id FROM cases WHERE id=? AND tenant_id=?', (cid, tid)).fetchone()
+            if not case:
+                return h.send('Not found', 404)
+            engine.create_import(c, tid, cid, fv(f, 'reference'), fv(f, 'mode', 'sea'), fv(f, 'arrival_date'))
+            engine.audit(c, tid, cid, uid, 'import_created', fv(f, 'reference'))
+            c.commit()
+            return h.redirect('/case/%s' % cid)
+
+        m = re.match(r'^/case/(\d+)/agents/run$', path)
+        if m:
+            if not require_perm(a, 'manage_evidence'):
+                return h.send('Forbidden', 403)
+            cid = int(m.group(1))
+            case = c.execute('SELECT id FROM cases WHERE id=? AND tenant_id=?', (cid, tid)).fetchone()
+            if not case:
+                return h.send('Not found', 404)
+            agents.run_case_workflow(c, tid, cid, uid)
+            c.commit()
+            return h.redirect(f'/case/{cid}/agents')
+
+        if path == '/case/create':
+            t = util.now()
+            c.execute('INSERT INTO cases(tenant_id,company,case_name,period,sector,status,created,updated,notes) '
+                       'VALUES(?,?,?,?,?,?,?,?,?)',
+                       (tid, fv(f, 'company'), fv(f, 'case_name'), fv(f, 'period'), fv(f, 'sector'), 'working', t, t, fv(f, 'notes')))
+            cid = c.execute('SELECT last_insert_rowid()').fetchone()[0]
+            engine.create_reporting_period(c, tid, fv(f, 'period'))
+            engine.sync_requirements(c, tid, cid)
+            engine.audit(c, tid, cid, uid, 'case_created', fv(f, 'case_name'))
+            c.commit()
+            return h.redirect('/case/%s' % cid)
+
+        if path == '/line/create':
+            cid = int(fv(f, 'case_id'))
+            case = c.execute('SELECT id FROM cases WHERE id=? AND tenant_id=?', (cid, tid)).fetchone()
+            if not case:
+                return h.send('Not found', 404)
+            product_id = None
+            cn_code = fv(f, 'cn_code').strip()
+            if cn_code:
+                product_id = engine.create_product(c, tid, cn_code)
+            lid = engine.cr
