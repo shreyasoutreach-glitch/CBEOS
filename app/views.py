@@ -84,7 +84,7 @@ def layout(actor, title, content, active='overview'):
     if not actor:
         return '<!doctype html><meta http-equiv="refresh" content="0;url=/login">'
     nav = ''.join(f'<a class="{"active" if k == active else ""}" href="{u}">{n}</a>' for k, u, n in NAV)
-    re(f'<a class="{"active" if k == active else ""}" href="{u}">{n}</a>' for k, u, n in NAV)
+    nav = ''.join(f'<a class="{"active" if k == active else ""}" href="{u}">{n}</a>' for k, u, n in NAV)
     return f'''<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width">
 <title>{util.esc(title)} · CBAM Evidence OS</title><style>{CSS}</style></head><body><div class="shell">
 <aside class="side"><div class="logo">CBAM <span>Control Tower</span></div><nav class="nav">{nav}</nav>
