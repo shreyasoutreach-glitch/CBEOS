@@ -229,4 +229,55 @@ def agents_home(c, actor):
         body += f'<div class="card section"><h2>Supplier operations · {util.esc(supplier_ops.get("open_request_count",0))} open / {util.esc(supplier_ops.get("overdue_request_count",0))} overdue</h2><p class="muted small">Recommended follow-up only. No email was sent and no supplier request status was changed.</p><table><tr><th>Supplier / request</th><th>Status</th><th>Deadline</th><th>Escalation</th></tr>'
         for item in supplier_ops.get('requests',[])[:8]:
             status_label = 'OVERDUE' if item.get('is_overdue') else item.get('status','UNKNOWN')
-            body += f'<tr><td><b>{util.esc(item.get("supplier_name") or "Unknown supplier")}</b><div class="muted small">{util.esc
+            body += f'<tr><td><b>{util.esc(item.get("supplier_name") or "Unknown supplier")}</b><div class="muted small">{util.esc(item.get("title") or item.get("requirement_name") or "Evidence request")}</div></td><td>{pill_for_status(status_label)}</td><td>{util.esc(item.get("deadline") or "No deadline")}</td><td>{util.esc(item.get("escalation_level",0))}</td></tr>'
+        if not supplier_ops.get('requests'):
+            body += '<tr><td colspan="4">No open supplier requests in this case.</td></tr>'
+        body += '</table></div>'
+        exposure = summary.get('agents',{}).get('commercial_exposure',{})
+        body += f'<div class="card section"><h2>Commercial exposure · indicative only</h2><div class="grid3"><div><div class="label">Recorded open exception impacts</div><div class="kpi">{util.esc(exposure.get("open_exception_impacts_count",0))}</div></div><div><div class="label">Latest per-line scenario exposure</div><div class="kpi">{util.esc(exposure.get("latest_line_scenario_exposure_sum_eur") or "Not available")}</div></div><div><div class="label">Status</div><div class="kpi" style="font-size:17px">{util.esc(exposure.get("scenario_status","NOT_AVAILABLE"))}</div></div></div><p class="muted small">Recorded exception impacts are listed individually and not summed because issues may overlap. Scenario exposure is not verified CBAM liability and must not be used as a declaration figure.</p></div>'
+        package_qa = summary.get('agents',{}).get('declaration_qa',{})
+        package_class = 'good' if package_qa.get('status') == 'CURRENT_DRAFT' else ('bad' if package_qa.get('status') in {'HASH_INVALID','STALE'} else 'warn')
+        body += f'<div class="card section"><h2>Declaration package QA</h2><span class="pill {package_class}">{util.esc(package_qa.get("status","NOT_CHECKED"))}</span><p>{util.esc(package_qa.get("action","No package status available."))}</p><div class="source">Package SHA-256: {util.esc(package_qa.get("stored_sha256") or "Not available")}</div></div>'
+        reg_summary = summary.get('agents',{}).get('regulatory',{})
+        if not reg_summary.get('binding_legal_act_available',False):
+            body += '<div class="dangerbox"><b>Regulatory source gap:</b> the local corpus contains guidance and administrative material but no identified binding CBAM legal-act text. Add and verify the current binding law before legal interpretation or reliance on liability figures.</div>'
+        chain_ok, chain_at = agents.verify_message_chain(c, tid, cid, run['id'])
+        chain_status = ('successbox' if chain_ok else 'dangerbox')
+        chain_text = ('Conversation hash chain verified. Each hand-off is linked to the previous message.' if chain_ok else f'Conversation integrity check failed at sequence {chain_at}. Do not rely on this transcript.')
+        body += f'<div class="card section"><h2>Agent-to-agent conversation</h2><div class="{chain_status}">{util.esc(chain_text)}</div><p class="muted small">Every hand-off is persisted in sequence with structured payloads and a per-run SHA-256 chain. Open an entry to inspect the machine-readable message payload.</p><div class="trace">'
+        for msg in messages:
+            payload = util.esc(msg.get('payload_json','{}'))
+            body += f'<div class="node"><div class="eyebrow">{util.esc(msg.get("sequence_no"))}. {util.esc(msg.get("from_agent"))} → {util.esc(msg.get("to_agent"))} · {util.esc(msg.get("message_type"))}</div><p>{util.esc(msg.get("body"))}</p><details><summary class="muted small">Inspect structured hand-off payload</summary><div class="source">{payload}</div></details></div><div class="arrow">↓</div>'
+        body += '</div></div>'
+    else:
+        body += '<div class="card section"><h2>What the run will produce</h2><ul class="checklist"><li><span class="tick yes">✓</span>Baseline counts and candidate-fact review workload</li><li><span class="tick yes">✓</span>Missing evidence and open-exception priority queue</li><li><span class="tick yes">✓</span>Regulatory references with source file, page and hash</li><li><span class="tick yes">✓</span>Calculation integrity warnings and readiness verdict</li><li><span class="tick no">!</span>No automatic fact verification, exception closure, declaration approval or filing</li></ul></div>'
+    return layout(actor, 'Agent terminal', body, 'agents')
+
+def case_list(c, actor):
+    tid = actor['tenant_id']
+    cases = c.execute('SELECT * FROM cases WHERE tenant_id=? ORDER BY updated DESC', (tid,)).fetchall()
+    body = '<div class="top"><div><div class="eyebrow">Cases</div><div class="title">Operational workspaces</div>' \
+           '<div class="sub">A case is the bounded unit of evidence, reconciliation, supplier follow-up and review for one importer/period.</div></div>' \
+           '<div class="actions"><a class="btn" href="/case/new">+ New case</a></div></div>' \
+           '<div class="card section"><table><tr><th>Case</th><th>Period</th><th>Sector</th><th>Status</th><th>Readiness</th><th></th></tr>'
+    for x in cases:
+        sc, rd = engine.readiness(c, tid, x['id'])
+        body += (f'<tr><td><b>{util.esc(x["case_name"])}</b><div class="muted small">{util.esc(x["company"])}</div></td>'
+                 f'<td>{util.esc(x["period"])}</td><td>{util.esc(x["sector"])}</td><td>{pill_for_status(x["status"])}</td>'
+                 f'<td>{sc}%</td><td><a class="btn secondary small" href="/case/{x["id"]}">Open</a></td></tr>')
+    body += '</table></div>'
+    return layout(actor, 'Cases', body, 'cases')
+
+
+def case_form(actor, csrf):
+    body = f'''<div class="eyebrow">Create operational case</div><div class="title">Start with the import, not the spreadsheet</div>
+<div class="sub">A case is the bounded unit of evidence, reconciliation, supplier follow-up and review for one importer/reporting period.</div>
+<div class="card section"><form method="post" action="/case/create"><div class="formgrid">
+<div class="field"><label>Company / importer</label><input name="company" required></div>
+<div class="field"><label>Case / workspace reference</label><input name="case_name" required placeholder="e.g. 2026 Annual CBAM Case"></div>
+<div class="field"><label>Reporting period</label><input name="period" value="2026" required></div>
+<div class="field"><label>Sector</label><select name="sector">
+<option value="iron_steel">Iron &amp; steel</option><option value="aluminium">Aluminium</option>
+<option value="fertilisers">Fertilisers</option><option value="cement">Cement</option>
+<option value="hydrogen">Hydrogen</option><option value="electricity">Electricity</option>
+<option value="other">Other / mixed</option></select>
