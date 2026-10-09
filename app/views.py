@@ -835,3 +835,30 @@ def sources_view(c, actor):
         body += f'<tr><td>{util.esc(v["cn_prefix"] or "sector fallback")}</td><td>{util.esc(v["sector"])}</td><td>{util.esc(v["country"] or "all")}</td><td>{util.esc(v["production_route"] or "all")}</td><td>{util.esc(v["total_default"])}</td><td>{pill_for_status(v["confidence"])}</td><td class="small">{util.esc(v["markup_note"])}</td></tr>'
     body += '</table><div class="dangerbox">Illustrative defaults are not legal inputs. The corrected official default-value dataset has not yet been fully reconciled and promoted in this build.</div></div>'
     return layout(actor, 'Regulatory sources', body, 'sources')
+
+
+# ---------------------------------------------------------------------------
+# Settings (admin)
+# ---------------------------------------------------------------------------
+
+def settings_view(c, actor, csrf, message=''):
+    tid = actor['tenant_id']
+    users = c.execute('SELECT * FROM users WHERE tenant_id=? ORDER BY id', (tid,)).fetchall()
+    body = f'''<div class="eyebrow">Settings</div><div class="title">Tenant &amp; users</div>
+<div class="sub">Role-based access: admin (users/settings), manager (approvals/calculations/suppliers), reviewer (evidence/exceptions), viewer (read-only).</div>'''
+    if message:
+        body += f'<div class="successbox">{util.esc(message)}</div>'
+    body += f'''<div class="card section"><h2>Users</h2><table><tr><th>Email</th><th>Role</th><th>Active</th></tr>'''
+    for u in users:
+        body += f'<tr><td>{util.esc(u["email"])}</td><td>{util.esc(u["role"])}</td><td>{"Yes" if u["active"] else "No"}</td></tr>'
+    body += f'''</table>
+<form method="post" action="/settings/user/create" class="section"><input type="hidden" name="csrf" value="{util.esc(csrf)}"><div class="formgrid3">
+<div class="field"><label>Email</label><input name="email" type="email" required></div>
+<div class="field"><label>Temporary password</label><input name="password" required></div>
+<div class="field"><label>Role</label><select name="role"><option value="viewer">Viewer</option><option value="reviewer">Reviewer</option>
+<option value="manager">Manager</option><option value="admin">Admin</option></select></div></div>
+<button class="btn secondary small">+ Add user</button></form></div>'''
+    body += '''<div class="card section"><h2>Data retention &amp; deletion</h2><p class="small muted">Policy-defined for this build (not yet code-enforced):
+evidence documents and audit history are retained for the statutory CBAM record-keeping period. A tenant-initiated deletion request is handled
+manually today and is logged as a REQUIRES EXTERNAL INTEGRATION item pending a retention-and-deletion engine (see README).</p></div>'''
+    return layout(actor, 'Settings', body, 'settings')
