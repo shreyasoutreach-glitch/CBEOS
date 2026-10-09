@@ -413,4 +413,136 @@ def handle_post(h, path):
                 return h.send('Forbidden', 403)
             sid = int(fv(f, 'supplier_id')) if fv(f, 'supplier_id') else None
             iid = engine.create_installation(c, tid, sid, fv(f, 'name'), fv(f, 'country'), fv(f, 'production_route'))
-            engine.audit(c, tid, None, uid, 'insta
+            engine.audit(c, tid, None, uid, 'installation_created', fv(f, 'name'))
+            c.commit()
+            return h.redirect(f'/supplier/{sid}' if sid else '/installations')
+
+        m = re.match(r'^/installation/(\d+)/emissions/add$', path)
+        if m:
+            if not require_perm(a, 'manage_suppliers'):
+                return h.send('Forbidden', 403)
+            iid = int(m.group(1))
+            inst = c.execute('SELECT * FROM installations WHERE id=? AND tenant_id=?', (iid, tid)).fetchone()
+            if not inst:
+                return h.send('Not found', 404)
+            t = util.now()
+            c.execute('INSERT INTO emissions_data(tenant_id,installation_id,methodology_id,direct_intensity,'
+                       'indirect_intensity,status,created,updated) VALUES(?,?,?,?,?,?,?,?)',
+                       (tid, iid, int(fv(f, 'methodology_id')) if fv(f, 'methodology_id') else None,
+                        fv(f, 'direct_intensity'), fv(f, 'indirect_intensity', '0'), fv(f, 'status', 'candidate'), t, t))
+            engine.audit(c, tid, None, uid, 'emissions_data_recorded', f'installation={iid}')
+            c.commit()
+            return h.redirect(f'/installation/{iid}')
+
+        if path == '/exception/transition':
+            eid = int(fv(f, 'id'))
+            new_status = fv(f, 'status')
+            if new_status in ('ACCEPTED_WITH_RISK', 'WAIVED') and not require_perm(a, 'waive_exception'):
+                return h.send('Forbidden: accepting risk or waiving requires manager role', 403)
+            if not require_perm(a, 'manage_exceptions'):
+                return h.send('Forbidden', 403)
+            ok, err = engine.transition_exception(c, tid, eid, uid, new_status, fv(f, 'resolution'), fv(f, 'owner'), fv(f, 'deadline'))
+            if not ok:
+                return h.send(util.esc(err), 400)
+            c.commit()
+            return h.redirect('/exceptions')
+
+        if path == '/approve':
+            if not require_perm(a, 'approve_case'):
+                return h.send('Forbidden', 403)
+            cid = int(fv(f, 'case_id'))
+            sc, rd = engine.readiness(c, tid, cid)
+            if not rd['ready']:
+                return h.send('Approval blocked: ' + util.esc('; '.join(rd['blockers'])), 409)
+            c.execute("INSERT INTO approvals(tenant_id,case_id,decision,comment,created,actor_id) VALUES(?,?,?,?,?,?)",
+                       (tid, cid, 'approved', 'Human reviewer approved operational evidence readiness.', util.now(), uid))
+            c.execute("UPDATE cases SET status='approved',approved_at=?,updated=? WHERE id=? AND tenant_id=?",
+                       (util.now(), util.now(), cid, tid))
+            engine.audit(c, tid, cid, uid, 'case_approved', 'operational evidence readiness')
+            c.commit()
+            return h.redirect('/case/%s' % cid)
+
+        m = re.match(r'^/case/(\d+)/declaration/generate$', path)
+        if m:
+            if not require_perm(a, 'generate_declaration'):
+                return h.send('Forbidden', 403)
+            cid = int(m.group(1))
+            case = c.execute('SELECT id FROM cases WHERE id=? AND tenant_id=?', (cid, tid)).fetchone()
+            if not case:
+                return h.send('Not found', 404)
+            engine.generate_declaration_package(c, tid, cid, uid)
+            c.commit()
+            return h.redirect(f'/case/{cid}/declaration')
+
+        if path == '/settings/user/create':
+            if not require_perm(a, 'manage_users'):
+                return h.send('Forbidden', 403)
+            email = fv(f, 'email').strip().lower()
+            c.execute('INSERT INTO users(tenant_id,email,password_hash,role,created) VALUES(?,?,?,?,?)',
+                       (tid, email, security.password_hash(fv(f, 'password')), fv(f, 'role', 'viewer'), util.now()))
+            engine.audit(c, tid, None, uid, 'user_created', f'{email}:{fv(f, "role")}')
+            c.commit()
+            return h.redirect('/settings')
+
+        return h.send('Not found', 404)
+    except ValueError as e:
+        c.rollback()
+        return h.send('Request rejected: ' + util.esc(str(e)), 400)
+    except Exception:
+        import logging
+        c.rollback()
+        logging.getLogger('cbeos.http').exception('Unhandled POST route error')
+        return h.send('Internal server error.', 500)
+    finally:
+        c.close()
+
+
+class Handler(BaseHTTPRequestHandler):
+    # Avoid disclosing framework/product version through the Server response header.
+    server_version = 'CBEOS'
+    sys_version = ''
+
+    def log_message(self, *a):
+        pass
+
+    def send(self, body, code=200, ctype='text/html'):
+        b = body.encode()
+        self.send_response(code)
+        self.send_header('Content-Type', ctype + '; charset=utf-8')
+        self.send_header('Content-Length', str(len(b)))
+        self.send_header('X-Content-Type-Options', 'nosniff')
+        self.send_header('X-Frame-Options', 'DENY')
+        self.send_header('Referrer-Policy', 'no-referrer')
+        self.send_header('Permissions-Policy', 'camera=(), microphone=(), geolocation=()')
+        self.send_header('Content-Security-Policy', "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'")
+        self.send_header('Cache-Control', 'no-store')
+        self.end_headers()
+        self.wfile.write(b)
+
+    def redirect(self, p):
+        self.send_response(303)
+        self.send_header('Location', p)
+        self.send_header('Cache-Control', 'no-store')
+        self.send_header('X-Content-Type-Options', 'nosniff')
+        self.send_header('X-Frame-Options', 'DENY')
+        self.send_header('Referrer-Policy', 'no-referrer')
+        self.end_headers()
+
+    def session_csrf(self):
+        sid = self.cookies.get(security.SESSION_COOKIE).value if self.cookies.get(security.SESSION_COOKIE) else ''
+        if not sid:
+            return ''
+        c = dbm.db()
+        r = c.execute('SELECT csrf FROM sessions WHERE id=? AND expires>?', (sid, util.now())).fetchone()
+        c.close()
+        return r['csrf'] if r else ''
+
+    def csrf_ok(self, f, a):
+        origin_ok = self.headers.get('Origin', '') in ('', 'http://' + self.headers.get('Host', ''), 'https://' + self.headers.get('Host', ''))
+        return bool(a and origin_ok and security.csrf_ok(self.session_csrf(), fv(f, 'csrf')))
+
+    def do_GET(self):
+        self.cookies = security.parse_cookies(self.headers.get('Cookie', ''))
+        try:
+            path = urlparse(self.path).path
+      
