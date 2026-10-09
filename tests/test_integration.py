@@ -2,7 +2,7 @@
 import http.client,json,os,re,sys,tempfile,threading,time,unittest
 sys.path.insert(0,os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from http.server import ThreadingHTTPServer
-from app import db as dbm,util
+from app import db as dbm,util,security
 from app.server import Handler
 class IntegrationTests(unittest.TestCase):
  @classmethod
@@ -20,6 +20,7 @@ class IntegrationTests(unittest.TestCase):
  def csrf(self,body):
   m=re.search(r'name="csrf" value="([^"]+)"',body);return m.group(1) if m else ''
  def login(self):
+  security.clear_attempts('127.0.0.1:admin@example.com')
   s,h,b=self.req('POST','/login',{'email':'admin@example.com','password':'integration-pass'});self.assertEqual(s,303);return h['Set-Cookie'].split(';')[0]
  def test_health_login_security_headers_and_case_create(self):
   s,h,b=self.req('GET','/healthz');self.assertEqual((s,json.loads(b)),(200,{'ok':True}))
