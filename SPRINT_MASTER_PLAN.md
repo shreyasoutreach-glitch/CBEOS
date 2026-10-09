@@ -24,9 +24,9 @@ A sprint is not “done” because code exists. Each sprint requires its deliver
 
 ## Current verified evidence
 
-- GitHub Actions run 37979224155 passed on commit 3fbc1879157b365c62710850433c4e16eb69c6a6: dependency audit, Python compilation, and all nine regression suites.
-- GitHub Actions run 37979224153 fetched all five official EUR-Lex HTML sources (HTTP 200) and extracted source-located table rows without approval. Artifact: https://github.com/shreyasoutreach-glitch/CBEOS/actions/runs/37979224153/artifacts/11641070061 (SHA-256 81238194daa0df176de8d40b69cc8ad0ee64f04bad513d0c3407b0c2ac0621d6; expires 16 October 2026).
-- Extraction counts are preliminary only: defaults consolidated 13,633 rows; defaults base 13,646; correction act 13,521; benchmark source 63; emissions methodology 604. These are raw HTML table rows, not canonical legal-record counts. Completeness, annex mapping, route semantics and cell extraction require review.
+- GitHub Actions run 37979407230 passed on commit 7980649e9288c57d1990c2f6f106b056d3d162ce: dependency audit, Python compilation, and all ten regression suites, including source-table extraction tests.
+- GitHub Actions run 37979394337 fetched all five official EUR-Lex HTML sources (HTTP 200) and extracted source-located table rows without approval. Artifact: https://github.com/shreyasoutreach-glitch/CBEOS/actions/runs/37979394337/artifacts/11641145249 (SHA-256 b5ac905c33c19bf5968e0e33ef97946ef0038d7256d1632e361c96e5f5661862; expires 16 October 2026).
+- Extraction counts are preliminary only: defaults consolidated 13,633 rows; defaults base 13,646; correction act 13,521; benchmark source 654; emissions methodology 846. These are raw HTML table rows, not canonical legal-record counts. Completeness, annex mapping, route semantics and cell extraction require review.
 - The CI dependency audit reported no known vulnerabilities in the published dependency environment. This is not a security certification.
 - Regression coverage includes unit, HTTP integration, security, regulatory import guard, agent workflow, demo rendering, legal parser/rules, source governance, and database recovery utilities.
 - Workbook-based parser tests are skipped in GitHub because source workbooks are intentionally not committed. They must be run in the controlled local workspace and their evidence retained.
