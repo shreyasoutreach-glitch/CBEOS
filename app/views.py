@@ -84,4 +84,57 @@ def layout(actor, title, content, active='overview'):
     if not actor:
         return '<!doctype html><meta http-equiv="refresh" content="0;url=/login">'
     nav = ''.join(f'<a class="{"active" if k == active else ""}" href="{u}">{n}</a>' for k, u, n in NAV)
-    re
+    re(f'<a class="{"active" if k == active else ""}" href="{u}">{n}</a>' for k, u, n in NAV)
+    return f'''<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width">
+<title>{util.esc(title)} · CBAM Evidence OS</title><style>{CSS}</style></head><body><div class="shell">
+<aside class="side"><div class="logo">CBAM <span>Control Tower</span></div><nav class="nav">{nav}</nav>
+<div class="sidefoot">Evidence graph · reconciliation · exception queue · verification readiness<br><br>
+{util.esc(actor["email"])} · {util.esc(actor["role"])}<br><a href="/logout">Sign out</a></div></aside>
+<main class="main">{content}<div class="footer">CBAM Evidence OS · Control Tower build · scenario calculations
+are not a declaration, legal opinion, or verified submission.</div></main></div></body></html>'''
+
+
+def login_page(error=''):
+    return f'''<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width">
+<title>CBAM Evidence OS · Sign in</title><style>{CSS}</style></head><body><div class="login"><div class="card">
+<div class="eyebrow">Compliance Control Tower</div><div class="title">CBAM Evidence OS</div>
+<p class="sub">Turn fragmented supplier and trade documents into verified, traceable, submission-ready CBAM records.</p>
+{f'<div class="dangerbox">{util.esc(error)}</div>' if error else ''}
+<form method="post" action="/login"><div class="field"><label>Email</label><input name="email" type="email" required></div>
+<div class="field"><label>Password</label><input name="password" type="password" required></div>
+<button class="btn" type="submit">Sign in</button></form>
+<p class="muted small">Local demo defaults: admin@example.com / change-me-now. Set CBAM_ADMIN_PASSWORD before any real deployment.</p>
+</div></div></body></html>'''
+
+
+def pill_for_status(status):
+    good = {'complete', 'verified', 'RESOLVED', 'ACCEPTED_WITH_RISK', 'READY', 'active', 'VALIDATED'}
+    bad = {'missing', 'rejected', 'OPEN', 'BLOCKED', 'NOT_READY', 'OVERDUE'}
+    cls = 'good' if status in good else ('bad' if status in bad else 'warn')
+    return f'<span class="pill {cls}">{util.esc(status)}</span>'
+
+
+# ---------------------------------------------------------------------------
+# Dashboard (portfolio-wide control tower home)
+# ---------------------------------------------------------------------------
+
+def dashboard(c, actor):
+    tid = actor['tenant_id']
+    cases = c.execute('SELECT * FROM cases WHERE tenant_id=? ORDER BY updated DESC', (tid,)).fetchall()
+    for case in cases:
+        supplier_ops.escalate_overdue(c, tid, case['id'])
+    total_lines = c.execute('SELECT COUNT(*) n FROM import_lines WHERE tenant_id=?', (tid,)).fetchone()['n']
+    blocked_lines = c.execute("SELECT COUNT(*) n FROM import_lines WHERE tenant_id=? AND status='blocked'", (tid,)).fetchone()['n']
+    ready_lines = c.execute("SELECT COUNT(*) n FROM import_lines WHERE tenant_id=? AND status IN ('ready','calculated','approved')", (tid,)).fetchone()['n']
+    open_exceptions = c.execute("SELECT COUNT(*) n FROM exceptions WHERE tenant_id=? AND status NOT IN ('RESOLVED','ACCEPTED_WITH_RISK','WAIVED')", (tid,)).fetchone()['n']
+    high_exceptions = c.execute("SELECT COUNT(*) n FROM exceptions WHERE tenant_id=? AND status NOT IN ('RESOLVED','ACCEPTED_WITH_RISK','WAIVED') AND severity='high'", (tid,)).fetchone()['n']
+    overdue_requests = c.execute("SELECT COUNT(*) n FROM supplier_requests WHERE tenant_id=? AND status='OVERDUE'", (tid,)).fetchone()['n']
+    suppliers_n = c.execute('SELECT COUNT(*) n FROM suppliers WHERE tenant_id=?', (tid,)).fetchone()['n']
+    installations_n = c.execute('SELECT COUNT(*) n FROM installations WHERE tenant_id=?', (tid,)).fetchone()['n']
+    docs_n = c.execute('SELECT COUNT(*) n FROM documents WHERE tenant_id=?', (tid,)).fetchone()['n']
+    calc_rows = c.execute("SELECT result_json FROM calculation_runs WHERE tenant_id=? AND run_type='import_line' AND id IN (SELECT MAX(id) FROM calculation_runs WHERE tenant_id=? GROUP BY import_line_id)", (tid, tid)).fetchall()
+    exposure = sum((util.num(json.loads(r['result_json']).get('indicative_certificate_equivalent') or 0) * util.num(json.loads(r['result_json']).get('certificate_price_eur_per_tco2e') or 0)) for r in calc_rows)
+    rs = engine.latest_rule_set(c)
+    latest_price = engine.latest_certificate_price(c, rs['id']) if rs else None
+    body = f"""<div class=\"top\"><div><div class=\"eyebrow\">Control tower</div><div class=\"title\">Evidence → exception → financial consequence</div>
+<div class=\"sub\">CBAM Evidence OS is not another ca
