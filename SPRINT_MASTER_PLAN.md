@@ -10,8 +10,8 @@ A sprint is not “done” because code exists. Each sprint requires its deliver
 
 | Sprint | Workstream | Current state | Exit gate / remaining work |
 |---|---|---|---|
-| 1 | Legal source acquisition and reconciliation | **BLOCKED** | Acquire and hash complete binding Annex I and Annex IV sources; reconcile every staged record, classify unmatched/ambiguous/continuation rows, independently review corrected cases, then approve immutable dataset version. Seven curated spot checks are not full reconciliation. |
-| 2 | Calculation rules and traceability | **Implemented baseline; review open** | Run independently reviewed golden cases against approved source rows, effective dates, reporting year, route and mark-up; preserve input snapshots; confirm every unsupported state fails closed. |
+| 1 | Legal source acquisition and reconciliation | **Machine row-level reconciliation complete; legal review open** | All 14,627 staged rows match extracted EUR-Lex table cells: Annex I 12,540/12,540; Annex IV 283/283; benchmarks 1,804/1,804. Machine comparison found no mismatch or ambiguity. Qualified review of source completeness, nested-table semantics, effective dates, fallback rules and routes remains mandatory before approving an immutable dataset version. |
+| 2 | Calculation rules and traceability | **Golden arithmetic baseline passes; broader review open** | Six independent arithmetic/selector cases pass, including total-field handling and route-specific benchmarks. Broader liability, precursor, free-allocation and effective-date rules still need review against approved source data. |
 | 3 | Evidence graph and scoped requirements | **Implemented baseline; review open** | Independently review requirement coverage and scope inheritance across case, supplier, installation and import line; test upload-to-fact provenance and human verification boundaries. |
 | 4 | Exception management and audit trail | **Implemented baseline; review open** | Validate state transitions, permissions, immutable history, audit-chain failure behavior and tenant isolation with adversarial cases. |
 | 5 | Application security | **Regression baseline green** | Remote CI dependency audit and security tests pass. Remaining: external security review, production secret/configuration review, shared rate limiting for multiple replicas, and real malware scanning before customer uploads. |
@@ -20,7 +20,7 @@ A sprint is not “done” because code exists. Each sprint requires its deliver
 | 8 | Agent workflow and source retrieval | **Implemented baseline; source corpus incomplete** | Confirm complete source corpus, retrieval citations/page hashes, agent-message chain, bounded model data, prompt-injection behavior and no automatic consequential actions. |
 | 9 | Documentation and release governance | **Core docs published; final freeze open** | Keep README, release status, checklist, source hierarchy and Antigravity brief consistent with latest HEAD; freeze version only after gates pass. |
 | 10 | Deployment and operations | **BLOCKED** | Do not deploy until CI is green at HEAD, legal source gate passes, production secrets and configuration are reviewed, health/readiness and migration plans are checked, and a rollback path is ready. |
-| 11 | Network-enabled closeout and independent verification | **Prepared; not executed** | Acquire official sources, run external dependency and host checks, deploy only after gates are satisfied, then have Antigravity independently review the exact commit, test results, security boundaries, source reconciliation and deployed behavior. |
+| 11 | Network-enabled closeout and independent verification | **Acquisition and machine reconciliation executed; Antigravity review open** | Official-source archive acquired and hash-verified; all 14,627 staged rows matched extracted source cells; six golden cases pass. Qualified legal/source review and Antigravity verification remain open. Deployment stays gated. |
 
 ## Current verified evidence
 
@@ -31,13 +31,13 @@ A sprint is not “done” because code exists. Each sprint requires its deliver
 - Regression coverage includes unit, HTTP integration, security, regulatory import guard, agent workflow, demo rendering, legal parser/rules, source governance, and database recovery utilities.
 - Workbook-based parser tests are skipped in GitHub because source workbooks are intentionally not committed. They must be run in the controlled local workspace and their evidence retained.
 - Public source publication is partial with respect to the local workspace and source inputs. No source workbook, confidential supplier data, or row-level reconciliation export is included.
-- The legal pipeline contains 14,627 staged records. Seven curated canonical-source spot checks passed; 14,620 records remain pending canonical reconciliation. Pending means unreviewed against canonical binding data, not necessarily wrong.
-- No canonical regulatory dataset has been promoted. No production deployment, independent Antigravity verification, or client outreach is authorized.
+- The legal pipeline now has a full machine comparison of 14,627 staged records against extracted EUR-Lex cells: Annex I 12,540; Annex IV 283; benchmarks 1,804; zero mismatches or ambiguous matches. These are `EXTRACTED_UNREVIEWED` matches, not legal approval.
+- Six independent golden calculation cases pass. The runtime now has a tested helper for total-field markup and rejects invalid/non-finite values. No canonical regulatory dataset has been promoted. No production deployment, off-host recovery drill, independent Antigravity verification, or client outreach is authorized.
 
 ## Closeout order for tonight
 
-1. Keep CI green at HEAD after documentation and source changes.
-2. Complete the network-dependent acquisition attempt and record source hashes/errors without promoting incomplete data.
+1. Keep CI green at HEAD after the reconciler, runtime helper, golden cases and documentation changes.
+2. Acquire the archive, verify its hash, and complete row-level machine reconciliation without promoting data.
 3. Run source-independent checks, security/configuration review, and recovery tooling tests.
 4. Publish an accurate release record and verification brief.
-5. Do not bypass Sprint 1 or Sprint 10 gates merely to claim all sprints complete. If binding source reconciliation remains incomplete, close the night with the engineering candidate tested and the regulatory/deployment gates explicitly blocked.
+5. Do not bypass legal review or Sprint 10 gates merely to claim all sprints complete. The engineering candidate is tested; legal approval, Antigravity review and production release remain blocked.
