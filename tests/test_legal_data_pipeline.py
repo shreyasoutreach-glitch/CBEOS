@@ -6,6 +6,7 @@ ROOT=Path(__file__).resolve().parents[1];sys.path.insert(0,str(ROOT));sys.path.i
 from stage_cbam_workbooks import parse_decimal,value_state,normalize_code,stage_defaults,stage_benchmarks
 from cbam_rules import markup_percent,calculate_default_total,choose_benchmark,ValidationBlocked
 from app.engine import calculate_marked_default_total
+from reconcile_acquired_sources import country as source_country, sector as source_sector, route as source_route, dec as source_decimal
 class ParserTests(unittest.TestCase):
  def test_decimal_comma_not_thousands(self):
   self.assertEqual(parse_decimal('0,870'),Decimal('0.870'));self.assertEqual(parse_decimal('1,300'),Decimal('1.300'));self.assertEqual(parse_decimal('1.234,56'),Decimal('1234.56'));self.assertEqual(parse_decimal('1,234.56'),Decimal('1234.56'))
@@ -59,5 +60,15 @@ class RuntimeGoldenCalculationTests(unittest.TestCase):
  def test_runtime_blocks_invalid_default_markup_values(self):
   for base,pct in [('NaN','10'),('Infinity','10'),('-0.1','10'),('0.5','-1'),('0.5','NaN')]:
    with self.subTest(base=base,pct=pct),self.assertRaises(ValueError):calculate_marked_default_total(base,pct)
+
+
+class AcquiredSourceParserTests(unittest.TestCase):
+ def test_country_alias_and_route_marker_normalization(self):
+  self.assertEqual(source_country('_Other Countries and Territorie'),'other countries and territories')
+  self.assertEqual(source_route('(F)(1)'),'(f)(1)')
+  self.assertEqual(source_sector('Iron & Steel'),'iron_steel')
+ def test_eurlex_decimal_comma_is_exact_decimal(self):
+  self.assertEqual(source_decimal('1,370'),Decimal('1.370'))
+  self.assertIsNone(source_decimal('-'))
 
 if __name__=='__main__':unittest.main(verbosity=2)
