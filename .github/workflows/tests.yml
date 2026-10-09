@@ -4,9 +4,7 @@ permissions:
   contents: read
 jobs:
   tests:
-    # Guard against publishing/testing a partial tree while the source is being brought over.
-    # Once the runnable app and test runner exist, normal pushes execute the full gates.
-    if: ${{ hashFiles('tests/run_all.py') != '' && hashFiles('app/db.py') != '' && hashFiles('app/engine.py') != '' && hashFiles('app/views.py') != '' }}
+    if: ${{ hashFiles('tests/run_all.py') != '' && hashFiles('tests/test_unit.py') != '' && hashFiles('tests/test_integration.py') != '' && hashFiles('tests/test_security.py') != '' && hashFiles('tests/test_regulatory_import.py') != '' && hashFiles('tests/test_agents.py') != '' && hashFiles('tests/test_demo_render_regression.py') != '' && hashFiles('tests/test_legal_data_pipeline.py') != '' && hashFiles('tests/test_source_governance.py') != '' && hashFiles('tests/test_db_operations.py') != '' && hashFiles('app/db.py') != '' && hashFiles('app/engine.py') != '' && hashFiles('app/server.py') != '' && hashFiles('app/views.py') != '' && hashFiles('app/agents.py') != '' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
