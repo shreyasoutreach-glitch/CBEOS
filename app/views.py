@@ -346,4 +346,71 @@ def case_detail(c, actor, case, csrf):
 <button class="btn secondary small">+ Add import line</button></form>'''
     body += '<table class="section"><tr><th>Line</th><th>CN</th><th>Qty</th><th>Supplier</th><th>Installation</th><th>Status</th><th></th></tr>'
     for l in lines:
-        sname = c.execute('SELECT name FROM suppliers WHERE id=?', (l['supplier_id'],)).fet
+        sname = c.execute('SELECT name FROM suppliers WHERE id=?', (l['supplier_id'],)).fetchone()
+        iname = c.execute('SELECT name FROM installations WHERE id=?', (l['installation_id'],)).fetchone()
+        body += (f'<tr><td><b>#{l["id"]}</b> {util.esc(l["invoice_ref"])}</td><td>{util.esc(l["cn_code"])}</td>'
+                 f'<td>{util.esc(l["quantity"])} {util.esc(l["quantity_unit"])}</td><td>{util.esc(sname["name"] if sname else "—")}</td>'
+                 f'<td>{util.esc(iname["name"] if iname else "—")}</td><td>{pill_for_status(l["status"])}</td>'
+                 f'<td><a class="btn secondary small" href="/line/{l["id"]}">Trace →</a></td></tr>')
+    body += '</table></div></div>'
+
+    body += '<div><div class="card"><h2>2 · Open exceptions</h2>'
+    if not exc:
+        body += '<div class="successbox">No open exceptions in this case.</div>'
+    for e in exc:
+        body += (f'<div class="dangerbox"><b>{util.esc(e["title"])}</b> {pill_for_status(e["severity"])} {pill_for_status(e["status"])}'
+                 f'<div class="muted small" style="margin-top:5px">{util.esc(e["detail"])}</div>'
+                 f'<div class="actions" style="margin-top:8px"><a class="btn secondary small" href="/exceptions#e{e["id"]}">Manage →</a></div></div>')
+    body += '</div>'
+    body += f'''<div class="card section"><h2>3 · Evidence requirements</h2><p class="muted small">Requirements are scope-aware (case / supplier / installation / import line), not a generic checklist.</p>
+<table><tr><th>Requirement</th><th>Scope</th><th>Status</th></tr>'''
+    for r in req[:40]:
+        body += f'<tr><td><b>{util.esc(r["name"])}</b></td><td class="small">{util.esc(r["scope_type"])} #{r["scope_id"]}</td><td>{pill_for_status(r["status"])}</td></tr>'
+    if len(req) > 40:
+        body += f'<tr><td colspan="3" class="muted small">+ {len(req) - 40} more requirement rows (per supplier/installation/import line).</td></tr>'
+    body += '</table></div></div></div>'
+
+    body += f'''<div class="card section"><h2>4 · Intake &amp; provenance</h2>
+<form method="post" action="/upload" enctype="multipart/form-data"><input type="hidden" name="case_id" value="{cid}">
+<input type="hidden" name="csrf" value="{util.esc(csrf)}"><div class="formgrid3">
+<div class="field"><label>Document type</label><select name="doc_type"><option>commercial_invoice</option><option>packing_list</option>
+<option>bill_of_lading</option><option>classification</option><option>customs</option><option>emissions</option>
+<option>supplier_declaration</option><option>methodology</option><option>verification</option><option>other</option></select></div>
+<div class="field"><label>Applies to import line (optional)</label><select name="import_line_id"><option value="">(case-level)</option>
+{"".join(f'<option value="{l["id"]}">#{l["id"]} {util.esc(l["cn_code"])}</option>' for l in lines)}</select></div>
+<div class="field"><label>Applies to installation (optional)</label><select name="installation_id"><option value="">(none)</option>{installation_opts}</select></div>
+</div><div class="field"><label>Source file (.pdf / .xlsx / .csv / .txt)</label><input type="file" name="file" required></div>
+<button class="btn">Upload + extract candidates</button></form>'''
+    body += '<table class="section"><tr><th>File</th><th>Type</th><th>Fingerprint</th><th>Status</th><th></th></tr>'
+    for d in docs[:30]:
+        body += (f'<tr><td><b>{util.esc(d["filename"])}</b><div class="muted small">{d["size_bytes"]:,} bytes</div></td>'
+                 f'<td>{util.esc(d["doc_type"])}</td><td class="source">{util.esc(d["sha256"][:18])}…</td>'
+                 f'<td><span class="pill good">{util.esc(d["status"])}</span></td>'
+                 f'<td><a class="btn secondary small" href="/document/{d["id"]}/download">Download</a></td></tr>')
+    body += '</table></div>'
+
+    body += '<div class="card section"><h2>5 · Candidate facts → authoritative facts</h2>' \
+            '<p class="muted small">Nothing extracted becomes authoritative automatically. Every value retains source document, locator and excerpt.</p>' \
+            '<table><tr><th>Field</th><th>Value</th><th>Source</th><th>Status</th><th></th></tr>'
+    for f in facts:
+        pill = 'good' if f['status'] == 'verified' else ('bad' if f['status'] == 'rejected' else 'warn')
+        actions = ''
+        if f['status'] == 'candidate':
+            actions = (f'<form method="post" action="/fact/verify" style="display:inline"><input type="hidden" name="id" value="{f["id"]}">'
+                       f'<input type="hidden" name="csrf" value="{util.esc(csrf)}"><button class="btn small">Verify</button></form> '
+                       f'<form method="post" action="/fact/reject" style="display:inline"><input type="hidden" name="id" value="{f["id"]}">'
+                       f'<input type="hidden" name="csrf" value="{util.esc(csrf)}"><button class="btn danger small">Reject</button></form>')
+        body += (f'<tr><td><b>{util.esc(FIELD_LABELS.get(f["field"], f["field"]))}</b><div class="muted small">{util.esc(f["unit"])}</div></td>'
+                 f'<td>{util.esc(f["value"])}</td><td><div class="source">{util.esc(f["filename"])} · {util.esc(f["location"])}<br>{util.esc(f["source_excerpt"])}</div></td>'
+                 f'<td><span class="pill {pill}">{util.esc(f["status"])}</span></td><td>{actions}</td></tr>')
+    body += '</table></div>'
+
+    body += f'''<div class="card section"><h2>6 · Evidence ledger</h2>
+<form method="post" action="/evidence/add"><input type="hidden" name="case_id" value="{cid}"><input type="hidden" name="csrf" value="{util.esc(csrf)}">
+<div class="formgrid3"><div class="field"><label>Name</label><input name="name" required placeholder="e.g. Supplier verified emissions statement"></div>
+<div class="field"><label>Category</label><select name="category">{"".join(f'<option value="{cat}">{cat}</option>' for _, cat, _, _, _ in dbm.REQS)}</select></div>
+<div class="field"><label>Scope</label><select name="scope_type"><option value="case">Case</option><option value="supplier">Supplier</option>
+<option value="installation">Installation</option><option value="import_line">Import line</option></select></div></div>
+<div class="field"><label>Scope id (supplier/installation/import-line id, blank for case)</label><input name="scope_id" placeholder="e.g. 3"></div>
+<div class="field"><label>Source / reference</label><input name="source"></div><div class="field"><label>Note</label><textarea name="note"></textarea></div>
+<button class="btn">Add evidence</button></form><table class="section"><tr><th>Evidence
