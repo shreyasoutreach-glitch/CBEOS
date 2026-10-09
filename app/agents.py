@@ -131,4 +131,68 @@ def retrieve_sources(query: str, top_k: int = 4) -> list[dict]:
             page_text = str(page.get('text', '')).lower()
             if query_phrase and query_phrase in page_text:
                 score += 2.0
-         
+            if score > 0:
+                scored.append((score, page))
+        scored.sort(key=lambda item: (-item[0], str(item[1].get('filename', '')).lower(), int(item[1].get('page', 0) or 0)))
+
+        results = []
+        seen_pages = set()
+        per_document = {}
+        verified_source_hashes = {}
+        source_root = (ROOT / 'knowledge' / 'sources').resolve()
+        limit = max(1, min(int(top_k), 8))
+        for score, page in scored:
+            filename = str(page.get('filename', ''))
+            try:
+                page_number = int(page.get('page', 0))
+            except (ValueError, TypeError):
+                continue
+            identity = (filename, page_number)
+            if identity in seen_pages or page_number < 1 or per_document.get(filename, 0) >= 2:
+                continue
+            # Basename-only paths prevent a corrupted index from escaping sources/.
+            if not filename or Path(filename).name != filename:
+                continue
+            source_path = (source_root / filename).resolve()
+            if source_path.parent != source_root or not source_path.is_file():
+                continue
+            if filename not in verified_source_hashes:
+                digest = hashlib.sha256(source_path.read_bytes()).hexdigest()
+                verified_source_hashes[filename] = digest
+            if verified_source_hashes[filename] != page.get('sha256'):
+                continue
+            text = str(page.get('text', ''))
+            low = text.lower()
+            positions = [low.find(term) for term in terms if low.find(term) >= 0]
+            start = max(0, min(positions or [0]) - 180)
+            excerpt = text[start:start+900].strip()
+            results.append({'filename': filename, 'page': page_number,
+                            'sha256': page['sha256'], 'score': round(score, 4), 'excerpt': excerpt})
+            seen_pages.add(identity)
+            per_document[filename] = per_document.get(filename, 0) + 1
+            if len(results) >= limit:
+                break
+        return results
+    except (OSError, ValueError, TypeError, KeyError):
+        return []
+
+
+def _llm_commentary(agent_name: str, case: dict, deterministic_result: dict,
+                    previous_messages: list[dict], sources: list[dict]) -> dict:
+    """Optional narrative critique. Any failure safely falls back to deterministic mode."""
+    if not llm_configured():
+        return {'status': 'not_configured', 'text': ''}
+    api_key = os.getenv('CBAM_LLM_API_KEY', '')
+    base = os.getenv('CBAM_LLM_BASE_URL', 'https://api.openai.com/v1').rstrip('/')
+    model = os.getenv('CBAM_LLM_MODEL', '')
+    parsed_base = urlparse(base)
+    local_http_hosts = {'localhost','127.0.0.1','::1'}
+    if not parsed_base.hostname or parsed_base.username or parsed_base.password or not (parsed_base.scheme == 'https' or (parsed_base.scheme == 'http' and parsed_base.hostname.lower() in local_http_hosts)):
+        return {'status': 'blocked_invalid_endpoint', 'text': ''}
+    context = {
+        'case': {'case_name': case.get('case_name'), 'period': case.get('period'), 'sector': case.get('sector')},
+        'deterministic_findings': deterministic_result,
+        'prior_agent_handoffs': [{'from':m['from_agent'],'to':m['to_agent'],'body':m['body'][:900]} for m in previous_messages[-4:]],
+        'regulatory_source_excerpts': [{'citation':f"{x['filename']} p.{x['page']} sha256:{x['sha256']}",'excerpt':x['excerpt'][:500]} for x in sources[:3]],
+    }
+    role_inst
