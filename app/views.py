@@ -607,9 +607,6 @@ def installation_detail(c, actor, installation, csrf):
         body += f'<tr><td>#{l["id"]}</td><td>{util.esc(l["cn_code"])}</td><td>{util.esc(l["quantity"])}</td><td>{pill_for_status(l["status"])}</td><td><a class="btn secondary small" href="/line/{l["id"]}">Trace →</a></td></tr>'
     body += '</table></div>'
     return layout(actor, installation['name'], body, 'installations')
-" href="/line/{l["id"]}">Trace →</a></td></tr>'
-    body += '</table></div>'
-    return layout(actor, installation['name'], body, 'installations')
 
 
 # ---------------------------------------------------------------------------
