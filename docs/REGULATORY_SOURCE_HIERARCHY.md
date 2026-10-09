@@ -23,7 +23,7 @@
 - Hash-pin the raw official source and record acquisition time, effective date, parser version and canonical record count.
 - Preserve original raw strings and parsed values separately, including blank, dash, parent rows, continuation rows, decimal commas, country labels, CN/TARIC code length and production-route indicators.
 - Key on the binding identity tuple: legislation/version, annex, country/territory, CN/TARIC code, route where applicable and effective date. Never join only on a truncated prefix if a more specific legal row is available.
-- Do not infer zero from a dash or missing value. Do not combine informational direct/indirect emissions when the binding annex specifies a separate total-emissions field.
+- Do not infer zero from a dash or missing value. Do not combine informational direct/indirect emissions when the binding annex specifies a separate total-emissions field. The binding **total emissions** column is the source value for default calculations; apply any required mark-up separately.
 - Recalculate default-value mark-ups separately from the binding total-emissions figure in accordance with the legal schedule and the relevant reporting year.
 - Compare every staged row to canonical binding data. A non-match must become a classified discrepancy with source locator and reviewer disposition, not a silent fallback.
 - Preserve unmatched, ambiguous and continuation rows in the report; no “best effort” merge may promote those values into production.
