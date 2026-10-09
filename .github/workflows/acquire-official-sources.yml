@@ -5,6 +5,7 @@ on:
     paths:
       - '.github/workflows/acquire-official-sources.yml'
       - 'tools/acquire_eurlex_sources.py'
+      - 'tools/extract_eurlex_tables.py'
 permissions:
   contents: read
 jobs:
