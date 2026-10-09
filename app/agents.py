@@ -55,4 +55,80 @@ def _tokens(text: str) -> list[str]:
     return [x for x in re.findall(r'[a-z0-9]{2,}', (text or '').lower()) if x not in STOPWORDS]
 
 
-def _bound_contex
+def _bound_context(value, depth=0):
+    """Bound untrusted context while preserving valid JSON structure."""
+    if depth > 6:
+        return '[nested context omitted]'
+    if isinstance(value, str):
+        return value if len(value) <= 900 else value[:900] + '…[truncated]'
+    if isinstance(value, dict):
+        items = list(value.items())[:50]
+        result = {str(k)[:100]: _bound_context(v, depth+1) for k,v in items}
+        if len(value) > len(items): result['_truncated_keys'] = len(value)-len(items)
+        return result
+    if isinstance(value, (list, tuple)):
+        items = list(value)[:20]
+        result = [_bound_context(v, depth+1) for v in items]
+        if len(value) > len(items): result.append(f'[{len(value)-len(items)} additional items omitted]')
+        return result
+    if value is None or isinstance(value, (int,float,bool)):
+        return value
+    return str(value)[:300]
+
+
+def retrieve_sources(query: str, top_k: int = 4) -> list[dict]:
+    """BM25-style page retrieval with title relevance, source hashes and page citations.
+
+    Results are diversified across documents so repeated pages from one long PDF do
+    not crowd out a relevant sector guide. This is retrieval, not legal authority ranking.
+    """
+    if not INDEX_PATH.exists():
+        return []
+    try:
+        index_bytes = INDEX_PATH.read_bytes()
+        manifest = json.loads(MANIFEST_PATH.read_text(encoding='utf-8'))
+        expected_index_hash = manifest.get('index_sha256', '')
+        if not expected_index_hash or hashlib.sha256(index_bytes).hexdigest() != expected_index_hash:
+            return []  # fail closed if the page index and manifest do not match
+        index = json.loads(index_bytes.decode('utf-8'))
+        pages = index.get('pages', [])
+        terms = list(dict.fromkeys(_tokens(query)))
+        if not terms or not isinstance(pages, list):
+            return []
+
+        # Document-frequency weighting reduces the dominance of generic terms such
+        # as "CBAM", "emissions", "calculation" and "guidance".
+        tokenized = []
+        df = {}
+        total_length = 0
+        for page in pages:
+            text = str(page.get('text', ''))
+            toks = re.findall(r'[a-z0-9]{2,}', text.lower())
+            freq = {}
+            for token in toks:
+                if token not in STOPWORDS:
+                    freq[token] = freq.get(token, 0) + 1
+            for token in freq:
+                df[token] = df.get(token, 0) + 1
+            total_length += sum(freq.values())
+            tokenized.append((page, freq, sum(freq.values())))
+        n_pages = max(1, len(tokenized))
+        avgdl = max(1.0, total_length / n_pages)
+        scored = []
+        query_phrase = ' '.join(terms)
+        for page, freq, doc_len in tokenized:
+            score = 0.0
+            for term in terms:
+                tf = freq.get(term, 0)
+                if not tf:
+                    continue
+                idf = max(0.0, math.log(1 + (n_pages - df.get(term, 0) + 0.5) / (df.get(term, 0) + 0.5)))
+                score += idf * (tf * 2.2) / (tf + 1.2 * (0.25 + 0.75 * doc_len / avgdl))
+            filename = str(page.get('filename', ''))
+            title_tokens = set(re.findall(r'[a-z0-9]{2,}', filename.lower()))
+            title_hits = sum(1 for term in terms if term in title_tokens)
+            score += title_hits * 3.0
+            page_text = str(page.get('text', '')).lower()
+            if query_phrase and query_phrase in page_text:
+                score += 2.0
+         
