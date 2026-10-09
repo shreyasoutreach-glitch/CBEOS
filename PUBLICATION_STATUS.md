@@ -7,7 +7,7 @@ Updated 10 October 2026 (IST).
 - Repository: https://github.com/shreyasoutreach-glitch/CBEOS
 - Megasprint branch: `meg-sprint/client-outcome-closeout-2026-10-10`
 - Latest known green main-branch run before this sprint: https://github.com/shreyasoutreach-glitch/CBEOS/actions/runs/37981524399 on commit `c5f8a1d7534685db5fe8af07f86d1629681239f3`.
-- **This megasprint branch has not yet been verified by CI.** Do not treat the earlier green run as validation of these changes.
+- The first complete megasprint candidate passed CI on commit `9f8f361f21aa0c6ccff39e548835f890e7135325` in run https://github.com/shreyasoutreach-glitch/CBEOS/actions/runs/37985734264. A later release-status metadata-only commit was added after that run and requires a fresh CI run before the updated head can be called green.
 - Official-source acquisition/extraction run: https://github.com/shreyasoutreach-glitch/CBEOS/actions/runs/37979394337
 - Reported artifact SHA-256: `b5ac905c33c19bf5968e0e33ef97946ef0038d7256d1632e361c96e5f5661862`. The previously recorded retention expiry is 16 October 2026.
 
@@ -16,7 +16,7 @@ Updated 10 October 2026 (IST).
 - The control-tower dashboard now includes an explicit sandbox/human-control boundary.
 - Four guided routes direct an operator to cases, supplier evidence, exception triage and verification readiness.
 - An outcome snapshot surfaces blocked import lines, high-severity exceptions and overdue supplier requests using tenant workflow counts.
-- Regression assertions were added for these dashboard states. They remain **CI pending**.
+- Regression assertions were added for these dashboard states. They passed regression assertions on commit `9f8f361f21aa0c6ccff39e548835f890e7135325`; the newer metadata-only follow-up commit still requires CI.
 
 ## Regulatory and source boundary
 
@@ -29,7 +29,7 @@ No canonical regulatory dataset has been approved or promoted. Arithmetic fixtur
 ## Release decision
 
 - Client-outcomes dashboard code: **IMPLEMENTED ON MEGASPRINT BRANCH**
-- Branch CI and full regression suite: **NOT RUN / PENDING**
+- Branch CI and full regression suite: **PASS ON 9f8f361f21aa0c6ccff39e548835f890e7135325; FOLLOW-UP HEAD RETEST PENDING**
 - Full legal-source reconciliation: **NOT VERIFIED AS EXECUTED**
 - Antigravity independent verification: **NOT RUN**
 - Production deployment: **NO-GO**
