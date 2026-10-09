@@ -17,14 +17,19 @@ jobs:
           python-version: '3.12'
       - run: python tools/acquire_eurlex_sources.py --out staging/official_sources --timeout 30 --retries 2
         continue-on-error: true
+      - name: Extract source-located HTML table rows
+        if: always()
+        run: |
+          if compgen -G 'staging/official_sources/*.html' > /dev/null; then
+            python tools/extract_eurlex_tables.py --input staging/official_sources --out staging/official_sources/extracted_tables
+          else
+            echo "No raw source HTML to extract."
+          fi
       - name: Show acquisition manifest
         if: always()
         run: |
-          if [ -f staging/official_sources/acquisition_manifest.json ]; then
-            cat staging/official_sources/acquisition_manifest.json
-          else
-            echo "No manifest was generated."
-          fi
+          if [ -f staging/official_sources/acquisition_manifest.json ]; then cat staging/official_sources/acquisition_manifest.json; else echo "No acquisition manifest was generated."; fi
+          if [ -f staging/official_sources/extracted_tables/extraction_manifest.json ]; then cat staging/official_sources/extracted_tables/extraction_manifest.json; else echo "No extraction manifest was generated."; fi
       - uses: actions/upload-artifact@v4
         if: always()
         with:
