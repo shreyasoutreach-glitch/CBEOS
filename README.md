@@ -7,7 +7,7 @@ CBEOS is a control-tower prototype for CBAM evidence intake, traceable import-li
 ## Current engineering status
 
 - Public source repository: this branch contains the runtime app modules, test suites, CI workflow, and regulatory staging/governance tools.
-- CI now checks dependency vulnerabilities, Python compilation, and nine regression suites. See [GitHub Actions](https://github.com/shreyasoutreach-glitch/CBEOS/actions) for the latest authoritative result.
+- CI now checks dependency vulnerabilities, Python compilation, and ten regression suites. See [GitHub Actions](https://github.com/shreyasoutreach-glitch/CBEOS/actions) for the latest authoritative result.
 - Regulatory gate remains blocked: 7 curated canonical binding-source spot checks are confirmed; 14,620 of 14,627 staged records remain pending reconciliation. Pending means not reconciled, not necessarily wrong.
 - No regulatory dataset has been promoted. No production deployment, off-host recovery drill, or independent Antigravity verification has been completed.
 - A clean CI run is necessary but does not by itself establish regulatory correctness, security certification, or production readiness.
