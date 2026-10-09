@@ -578,3 +578,51 @@ def suppliers_list(c, actor, csrf):
         body += '<tr><td colspan="8">No suppliers yet. Create one or add them through a case workflow.</td></tr>'
     body += '</table></div>'
     return layout(actor, 'Suppliers', body, 'suppliers')
+lier, csrf):
+    tid = actor['tenant_id']
+    sid = supplier['id']
+    installations = c.execute('SELECT * FROM installations WHERE tenant_id=? AND supplier_id=?', (tid, sid)).fetchall()
+    lines = c.execute('SELECT * FROM import_lines WHERE tenant_id=? AND supplier_id=?', (tid, sid)).fetchall()
+    requests = c.execute('SELECT * FROM supplier_requests WHERE tenant_id=? AND supplier_id=? ORDER BY id DESC', (tid, sid)).fetchall()
+    cases = c.execute('SELECT DISTINCT c.* FROM cases c JOIN import_lines l ON l.case_id=c.id WHERE l.tenant_id=? AND l.supplier_id=?', (tid, sid)).fetchall()
+
+    body = f'''<div class="top"><div><div class="eyebrow">Supplier</div><div class="title">{util.esc(supplier["name"])}</div>
+<div class="sub">{util.esc(supplier["country"])} · {util.esc(supplier["contact_email"] or "no contact on file")}</div></div></div>'''
+
+    scorecards = [(cs, supplier_ops.supplier_scorecard(c, tid, cs['id'], sid)) for cs in cases]
+    for cs, sc in scorecards:
+        body += (f'<div class="card section"><h2>{util.esc(cs["case_name"])}</h2>'
+                 f'<p>Supplier <b>{util.esc(supplier["name"])}</b> has <b>{sc["lines_total"]}</b> affected import lines. '
+                 f'<b>{sc["lines_supported"]}</b> are supported. <b>{sc["lines_blocked"]}</b> are blocked. '
+                 f'Evidence requirements {sc["evidence_complete_pct"]}% complete. {sc["open_requests"]} open request(s), '
+                 f'{sc["overdue_requests"]} overdue.</p>'
+                 f'<form method="post" action="/supplier/{sid}/generate_requests"><input type="hidden" name="case_id" value="{cs["id"]}">'
+                 f'<input type="hidden" name="csrf" value="{util.esc(csrf)}"><div class="field"><label>Deadline</label><input type="date" name="deadline"></div>'
+                 f'<button class="btn secondary small">Generate missing-evidence requests</button></form></div>')
+
+    body += '<div class="card section"><h2>Installations</h2>' \
+            f'<form method="post" action="/installation/create"><input type="hidden" name="supplier_id" value="{sid}">' \
+            f'<input type="hidden" name="csrf" value="{util.esc(csrf)}"><div class="formgrid3">' \
+            '<div class="field"><label>Name</label><input name="name" required></div><div class="field"><label>Country</label><input name="country"></div>' \
+            '<div class="field"><label>Production route</label><input name="production_route" placeholder="e.g. Basic oxygen furnace"></div></div>' \
+            '<button class="btn secondary small">+ Add installation</button></form>' \
+            '<table class="section"><tr><th>Installation</th><th>Country</th><th>Route</th><th></th></tr>'
+    for i in installations:
+        body += f'<tr><td><b>{util.esc(i["name"])}</b></td><td>{util.esc(i["country"])}</td><td>{util.esc(i["production_route"])}</td><td><a class="btn secondary small" href="/installation/{i["id"]}">Open</a></td></tr>'
+    body += '</table></div>'
+
+    body += '<div class="card section"><h2>Import lines from this supplier</h2><table><tr><th>Line</th><th>CN</th><th>Qty</th><th>Status</th><th></th></tr>'
+    for l in lines:
+        body += f'<tr><td>#{l["id"]}</td><td>{util.esc(l["cn_code"])}</td><td>{util.esc(l["quantity"])}</td><td>{pill_for_status(l["status"])}</td><td><a class="btn secondary small" href="/line/{l["id"]}">Trace →</a></td></tr>'
+    body += '</table></div>'
+
+    body += '<div class="card section"><h2>Evidence request history</h2><table><tr><th>Requirement</th><th>Status</th><th>Deadline</th><th>Escalation</th><th></th></tr>'
+    for r in requests:
+        actions = ''
+        if r['status'] == 'DRAFT':
+            actions = f'<form method="post" action="/supplier_request/{r["id"]}/send" style="display:inline"><input type="hidden" name="csrf" value="{util.esc(csrf)}"><button class="btn small">Send</button></form>'
+        elif r['status'] in ('SENT', 'WAITING', 'OVERDUE'):
+            actions = (f'<form method="post" action="/supplier_request/{r["id"]}/respond" style="display:inline"><input type="hidden" name="csrf" value="{util.esc(csrf)}">'
+                       f'<input type="hidden" name="validated" value="0"><button class="btn secondary small">Mark responded</button></form> '
+                       f'<form method="post" action="/supplier_request/{r["id"]}/respond" style="display:inline"><input type="hidden" name="csrf" value="{util.esc(csrf)}">'
+                       f'<input type="hidden" 
