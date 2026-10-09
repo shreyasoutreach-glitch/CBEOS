@@ -376,4 +376,72 @@ def run_case_workflow(c, tenant_id: int, case_id: int, user_id: int) -> dict:
         outputs['reconciliation'] = conflicts
         msg = f"Reconciliation reports {conflicts['open_exception_count']} open exceptions, including {conflicts['high_severity_count']} high-severity items overall. The displayed exception sample is capped at 12 for readability. I have not closed or accepted any issue. Regulatory Research Agent, find relevant source passages for {case['sector']} and the reporting period, and return citations rather than unsupported conclusions."
         messages.append(_message(c,run_id,seq,'Reconciliation Agent','Regulatory Research Agent',msg,conflicts)); seq+=1
-        add_advisory('Reconciliation Agent','Regulato
+        add_advisory('Reconciliation Agent','Regulatory Research Agent',conflicts)
+
+        reg_query = f"CBAM {case['sector']} {case['period']} embedded emissions calculation free allocation adjustment precursor verification methodology default values"
+        sources = retrieve_sources(reg_query, top_k=5)
+        try:
+            corpus_manifest = json.loads(MANIFEST_PATH.read_text(encoding='utf-8'))
+            corpus_docs = corpus_manifest.get('documents', [])
+        except (OSError,ValueError,TypeError):
+            corpus_docs = []
+        binding_acts = [str(doc.get('filename','')) for doc in corpus_docs if re.search(r'(regulation|directive|decision|official.?journal|eur-lex)', str(doc.get('filename','')), re.I)]
+        binding_legal_act_available = bool(binding_acts)
+        try:
+            authority_register = json.loads(AUTHORITY_REGISTER_PATH.read_text(encoding='utf-8'))
+            required_authorities = authority_register.get('sources', [])
+            missing_authorities = [
+                {'id': item.get('id'), 'title': item.get('title'), 'status': item.get('status'), 'official_url': item.get('official_url')}
+                for item in required_authorities if item.get('status') != 'IMPORTED_AND_VALIDATED'
+            ]
+        except (OSError, ValueError, TypeError):
+            missing_authorities = [{'id':'authority_register_unavailable','title':'Authority register could not be loaded','status':'BLOCKED','official_url':None}]
+        reg = {'query':reg_query,'source_count':len(sources),'sources':sources,
+               'binding_legal_act_available':binding_legal_act_available,'binding_legal_act_files':binding_acts,
+               'required_authorities_not_validated':missing_authorities,
+               'interpretation':'Retrieved excerpts are navigational evidence only. Confirm effective law, amendments, sector applicability and authoritative values before reliance.' if binding_legal_act_available else 'The indexed local corpus contains guidance, factsheets and administrative material but no identified binding legal-act text. Add and verify current binding CBAM legislation before legal interpretation.'}
+        outputs['regulatory'] = reg
+        citations = '; '.join(f"{x['filename']} p.{x['page']} (SHA-256 {x['sha256'][:12]}…)" for x in sources[:4]) or 'No searchable local source pages found.'
+        msg = f"Retrieved {len(sources)} relevant page-level source excerpts. Leading citations: {citations}. The local corpus does {'include' if binding_legal_act_available else 'not include'} an identified binding legal act. Guidance PDFs are not a substitute for current law and the corrected official default dataset. Calculation Integrity Agent, audit data authority and scenario status; do not calculate or approve from retrieved prose."
+        messages.append(_message(c,run_id,seq,'Regulatory Research Agent','Calculation Integrity Agent',msg,reg)); seq+=1
+        add_advisory('Regulatory Research Agent','Calculation Integrity Agent',reg,sources)
+
+        defaults = c.execute("SELECT confidence,COUNT(*) n FROM default_values GROUP BY confidence ORDER BY confidence").fetchall()
+        calc_rows = c.execute("SELECT id,status,review_status,created,result_json FROM calculation_runs WHERE tenant_id=? AND case_id=? ORDER BY id DESC LIMIT 10",(tenant_id,case_id)).fetchall()
+        calc_status = []
+        for row in calc_rows:
+            try: result = json.loads(row['result_json'] or '{}')
+            except (ValueError, TypeError): result = {}
+            calc_status.append({'id':row['id'],'status':row['status'],'review_status':row['review_status'],
+                                'result_status':result.get('status','unknown')})
+        official_defaults = _count(c,"SELECT COUNT(*) FROM default_values WHERE confidence='official'",())
+        calc = {'default_rows_by_confidence':[dict(r) for r in defaults], 'official_default_rows_available':official_defaults,
+                'recent_calculation_runs':calc_status,
+                'calculation_policy':'Scenario outputs are not declarations. Official default data and validated methodology are required before customer reliance.'}
+        if official_defaults == 0:
+            calc['blocking_findings'] = ['No default-value rows are currently marked official in the local regulatory database.']
+        else:
+            calc['blocking_findings'] = []
+        if any(x['status'] == 'scenario' or x['result_status'] == 'SCENARIO_ONLY' for x in calc_status):
+            calc['blocking_findings'].append('Recent calculations are scenario-only and require human/regulatory review.')
+        if not binding_legal_act_available:
+            calc['blocking_findings'].append('The local knowledge corpus has no identified binding CBAM legal-act text; verify current legislation before reliance.')
+        outputs['calculation_auditor'] = calc
+        msg = f"Calculation audit found {official_defaults} official default-value rows and {len(calc_status)} recent run(s). Blocking findings: {len(calc['blocking_findings'])}. I will not change or synthesize any liability figure. Commercial Exposure Agent, summarize only recorded exception impacts and existing scenario outputs, clearly separating estimates from verified liability."
+        messages.append(_message(c,run_id,seq,'Calculation Integrity Agent','Commercial Exposure Agent',msg,calc)); seq+=1
+        add_advisory('Calculation Integrity Agent','Commercial Exposure Agent',calc,sources)
+
+        impact_rows = c.execute("SELECT id,title,financial_impact_eur FROM exceptions WHERE tenant_id=? AND case_id=? AND status NOT IN ('RESOLVED','ACCEPTED_WITH_RISK','WAIVED') AND financial_impact_eur IS NOT NULL AND trim(CAST(financial_impact_eur AS TEXT))!='' ORDER BY id LIMIT 50",(tenant_id,case_id)).fetchall()
+        impact_values = []
+        for item in impact_rows:
+            try:
+                value = Decimal(str(item['financial_impact_eur']))
+                if value.is_finite(): impact_values.append({'exception_id':item['id'],'title':item['title'],'recorded_impact_eur':util.q(value)})
+            except (InvalidOperation,ValueError,TypeError):
+                continue
+        calculation_rows = c.execute('SELECT id,import_line_id,result_json FROM calculation_runs WHERE tenant_id=? AND case_id=? ORDER BY id DESC',(tenant_id,case_id)).fetchall()
+        seen_lines, scenario_exposures = set(), []
+        for row in calculation_rows:
+            line_id = row['import_line_id']
+            if line_id is None or line_id in seen_lines:
+                
