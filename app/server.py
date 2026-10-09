@@ -664,4 +664,60 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_POST(self):
         self.cookies = security.parse_cookies(self.headers.get('Cookie', ''))
-        path = urlparse(self.path).
+        path = urlparse(self.path).path
+        if path == '/login':
+            try:
+                f = parse_form(self)
+            except ValueError:
+                return self.send('Invalid or oversized request body.', 400)
+            origin = self.headers.get('Origin', '')
+            host = self.headers.get('Host', '')
+            if origin and origin not in ('http://' + host, 'https://' + host):
+                return self.send('Cross-origin login request rejected.', 403)
+            email = fv(f, 'email').strip().lower()
+            pw = fv(f, 'password')
+            client_ip = self.client_address[0]
+            key = f'{client_ip}:{email}'
+            if security.rate_limited(key):
+                return self.send('Too many attempts. Try again later.', 429)
+            c = dbm.db()
+            r = c.execute('SELECT * FROM users WHERE email=? AND active=1 LIMIT 1', (email,)).fetchone()
+            if not r or not security.password_ok(pw, r['password_hash']):
+                security.record_attempt(key)
+                c.close()
+                return self.send(views.login_page('Invalid credentials'), 401)
+            security.clear_attempts(key)
+            sid, csrf = security.create_session(c, r['id'], client_ip)
+            c.commit()
+            c.close()
+            self.send_response(303)
+            self.send_header('Location', '/')
+            secure_cookie = os.getenv('CBAM_COOKIE_SECURE', '1' if os.getenv('CBAM_ENV', 'development').lower() == 'production' else '0') == '1'
+            cookie_attrs = f'{security.SESSION_COOKIE}={sid}; HttpOnly; SameSite=Lax; Path=/; Max-Age={security.SESSION_TTL_HOURS * 3600}'
+            if secure_cookie:
+                cookie_attrs += '; Secure'
+            self.send_header('Set-Cookie', cookie_attrs)
+            self.end_headers()
+            return
+        if path == '/upload':
+            return do_upload(self)
+        try:
+            return handle_post(self, path)
+        except ValueError:
+            return self.send('Invalid or oversized request body.', 400)
+        except Exception:
+            import logging
+            logging.getLogger('cbeos.http').exception('Unhandled POST handler error')
+            return self.send('Internal server error.', 500)
+
+
+def main():
+    dbm.init()
+    print(f'CBAM Evidence OS (Control Tower) running at http://{HOST}:{PORT}/')
+    print('Admin: ' + os.getenv('CBAM_ADMIN_EMAIL', 'admin@example.com'))
+    print('Set CBAM_ADMIN_PASSWORD before first run for a non-default local password.')
+    ThreadingHTTPServer((HOST, PORT), Handler).serve_forever()
+
+
+if __name__ == '__main__':
+    main()
