@@ -2,9 +2,10 @@
 import sys, unittest
 from decimal import Decimal
 from pathlib import Path
-ROOT=Path(__file__).resolve().parents[1];sys.path.insert(0,str(ROOT/'tools'))
+ROOT=Path(__file__).resolve().parents[1];sys.path.insert(0,str(ROOT));sys.path.insert(0,str(ROOT/'tools'))
 from stage_cbam_workbooks import parse_decimal,value_state,normalize_code,stage_defaults,stage_benchmarks
 from cbam_rules import markup_percent,calculate_default_total,choose_benchmark,ValidationBlocked
+from app.engine import calculate_marked_default_total
 class ParserTests(unittest.TestCase):
  def test_decimal_comma_not_thousands(self):
   self.assertEqual(parse_decimal('0,870'),Decimal('0.870'));self.assertEqual(parse_decimal('1,300'),Decimal('1.300'));self.assertEqual(parse_decimal('1.234,56'),Decimal('1234.56'));self.assertEqual(parse_decimal('1,234.56'),Decimal('1234.56'))
@@ -45,4 +46,18 @@ class RuleTests(unittest.TestCase):
   row={'approval_status':'approved','column_a_state':'numeric','column_b_state':'numeric','column_a_bmg_tco2e_per_t':'0.666','column_b_bmg_tco2e_per_t':'0.859','column_a_route':'BF-BOF','column_b_route':'EAF','source_sha256':'abc'}
   self.assertEqual(choose_benchmark(row,'a','BF-BOF'),Decimal('0.666'))
   with self.assertRaises(ValidationBlocked):choose_benchmark(row,'b','BF-BOF')
+
+class RuntimeGoldenCalculationTests(unittest.TestCase):
+ def test_runtime_golden_cases_match_independent_arithmetic(self):
+  cases=[('GC-01','0.870','10','0.9570'),('GC-02','0.140','20','0.1680'),('GC-03','0.360','30','0.4680'),('GC-04','2.760','1','2.7876')]
+  for case_id,base,pct,expected in cases:
+   with self.subTest(case_id=case_id):self.assertEqual(format(calculate_marked_default_total(base,pct),'f'),expected)
+ def test_runtime_uses_legal_total_field_not_component_sum(self):
+  legal=calculate_marked_default_total('2.760','1')
+  wrong=calculate_marked_default_total(str(Decimal('2.730')+Decimal('0.040')),'1')
+  self.assertEqual(format(legal,'f'),'2.7876');self.assertEqual(format(wrong,'f'),'2.7977');self.assertNotEqual(legal,wrong)
+ def test_runtime_blocks_invalid_default_markup_values(self):
+  for base,pct in [('NaN','10'),('Infinity','10'),('-0.1','10'),('0.5','-1'),('0.5','NaN')]:
+   with self.subTest(base=base,pct=pct),self.assertRaises(ValueError):calculate_marked_default_total(base,pct)
+
 if __name__=='__main__':unittest.main(verbosity=2)
