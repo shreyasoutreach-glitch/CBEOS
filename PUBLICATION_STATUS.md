@@ -7,7 +7,7 @@ Updated 10 October 2026 (IST).
 The public repository contains the app runtime modules, regression tests, the acquired-source reconciliation tool, golden cases, governance docs, and GitHub Actions workflows. The complete local engineering workspace, raw workbook inputs, and full row-level CSV exports are not published, so this is still a partial source publication.
 
 - Repository: https://github.com/shreyasoutreach-glitch/CBEOS
-- Last previously confirmed green regression run: https://github.com/shreyasoutreach-glitch/CBEOS/actions/runs/37979670408. New runtime and reconciliation changes have passed the local full application test suite; remote CI for the current HEAD must be checked before release.
+- Latest verified green run at the time of this update: https://github.com/shreyasoutreach-glitch/CBEOS/actions/runs/37981451471 on commit `335886a7e3d7a6a1d1d5f0a1f8edaeaf5492906e`. It passed dependency audit, Python compilation, and the full remote test runner. Any subsequent commit must be re-verified before release.
 - Latest EUR-Lex acquisition/extraction run: https://github.com/shreyasoutreach-glitch/CBEOS/actions/runs/37979394337
 - Unreviewed source artifact: https://github.com/shreyasoutreach-glitch/CBEOS/actions/runs/37979394337/artifacts/11641145249
 - Artifact SHA-256: b5ac905c33c19bf5968e0e33ef97946ef0038d7256d1632e361c96e5f5661862. Retention expires 16 October 2026.
