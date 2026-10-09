@@ -295,4 +295,122 @@ def handle_post(h, path):
             cn_code = fv(f, 'cn_code').strip()
             if cn_code:
                 product_id = engine.create_product(c, tid, cn_code)
-            lid = engine.cr
+            lid = engine.create_import_line(
+                c, tid, cid,
+                import_id=int(fv(f, 'import_id')) if fv(f, 'import_id') else None,
+                product_id=product_id, cn_code=cn_code,
+                supplier_id=int(fv(f, 'supplier_id')) if fv(f, 'supplier_id') else None,
+                installation_id=int(fv(f, 'installation_id')) if fv(f, 'installation_id') else None,
+                invoice_ref=fv(f, 'invoice_ref'), origin_country=fv(f, 'origin_country'),
+                quantity=fv(f, 'quantity', '0'), quantity_unit='t')
+            engine.sync_requirements(c, tid, cid)
+            engine.audit(c, tid, cid, uid, 'import_line_created', f'#{lid} {cn_code}')
+            c.commit()
+            return h.redirect('/case/%s' % cid)
+
+        if path == '/fact/verify' or path == '/fact/reject':
+            if not require_perm(a, 'review_fact'):
+                return h.send('Forbidden', 403)
+            fid = int(fv(f, 'id'))
+            row = c.execute('SELECT * FROM facts WHERE id=? AND tenant_id=?', (fid, tid)).fetchone()
+            if not row:
+                return h.send('Not found', 404)
+            status = 'verified' if path.endswith('verify') else 'rejected'
+            c.execute('UPDATE facts SET status=?,verified_by=?,verified_at=?,updated=? WHERE id=?',
+                       (status, uid, util.now(), util.now(), fid))
+            engine.audit(c, tid, row['case_id'], uid, 'fact_' + status, str(fid))
+            engine.run_reconciliation(c, tid, row['case_id'], uid)
+            c.commit()
+            return h.redirect('/case/%s' % row['case_id'])
+
+        if path == '/evidence/add':
+            if not require_perm(a, 'manage_evidence'):
+                return h.send('Forbidden', 403)
+            cid = int(fv(f, 'case_id'))
+            t = util.now()
+            scope_type = fv(f, 'scope_type', 'case')
+            scope_id = int(fv(f, 'scope_id')) if fv(f, 'scope_id') else 0
+            c.execute('INSERT INTO evidence(tenant_id,case_id,name,category,status,scope_type,scope_id,owner,source,'
+                       'note,updated) VALUES(?,?,?,?,?,?,?,?,?,?,?)',
+                       (tid, cid, fv(f, 'name'), fv(f, 'category'), 'complete', scope_type, scope_id, '', fv(f, 'source'), fv(f, 'note'), t))
+            engine.audit(c, tid, cid, uid, 'evidence_added', fv(f, 'name'))
+            engine.run_reconciliation(c, tid, cid, uid)
+            c.commit()
+            return h.redirect('/case/%s' % cid)
+
+        if path == '/calculate':
+            if not require_perm(a, 'run_calculation'):
+                return h.send('Forbidden', 403)
+            cid = int(fv(f, 'case_id'))
+            engine.compute_scenario(c, tid, uid, cid, f)
+            engine.audit(c, tid, cid, uid, 'scenario_calculation_run', 'workbench')
+            c.commit()
+            return h.redirect('/case/%s' % cid)
+
+        m = re.match(r'^/line/(\d+)/calculate$', path)
+        if m:
+            if not require_perm(a, 'run_calculation'):
+                return h.send('Forbidden', 403)
+            lid = int(m.group(1))
+            line = c.execute('SELECT case_id FROM import_lines WHERE id=? AND tenant_id=?', (lid, tid)).fetchone()
+            if not line:
+                return h.send('Not found', 404)
+            result, err = engine.compute_import_line_calculation(c, tid, uid, line['case_id'], lid, f)
+            if err:
+                return h.send(util.esc(err), 400)
+            engine.audit(c, tid, line['case_id'], uid, 'import_line_calculation_run', str(lid))
+            c.commit()
+            return h.redirect('/line/%s' % lid)
+
+        if path == '/supplier/create':
+            if not require_perm(a, 'manage_suppliers'):
+                return h.send('Forbidden', 403)
+            engine.create_supplier(c, tid, fv(f, 'name'), fv(f, 'country'), contact_email=fv(f, 'contact_email'))
+            engine.audit(c, tid, None, uid, 'supplier_created', fv(f, 'name'))
+            c.commit()
+            return h.redirect('/suppliers')
+
+        m = re.match(r'^/supplier/(\d+)/generate_requests$', path)
+        if m:
+            if not require_perm(a, 'manage_suppliers'):
+                return h.send('Forbidden', 403)
+            sid = int(m.group(1))
+            cid = int(fv(f, 'case_id'))
+            n = supplier_ops.generate_requests_for_supplier(c, tid, cid, sid, uid, fv(f, 'deadline'))
+            c.commit()
+            return h.redirect(f'/supplier/{sid}')
+
+        m = re.match(r'^/supplier_request/(\d+)/send$', path)
+        if m:
+            if not require_perm(a, 'manage_suppliers'):
+                return h.send('Forbidden', 403)
+            rid = int(m.group(1))
+            supplier_ops.send_request(c, tid, rid, uid)
+            r = c.execute('SELECT supplier_id FROM supplier_requests WHERE id=?', (rid,)).fetchone()
+            c.commit()
+            return h.redirect(f'/supplier/{r["supplier_id"]}')
+
+        m = re.match(r'^/supplier_request/(\d+)/respond$', path)
+        if m:
+            if not require_perm(a, 'manage_suppliers'):
+                return h.send('Forbidden', 403)
+            rid = int(m.group(1))
+            supplier_ops.mark_responded(c, tid, rid, uid, validated=fv(f, 'validated') == '1')
+            if fv(f, 'validated') == '1':
+                req = c.execute('SELECT * FROM supplier_requests WHERE id=?', (rid,)).fetchone()
+                sid = req['supplier_id']
+                for inst in c.execute('SELECT id FROM installations WHERE tenant_id=? AND supplier_id=?', (tid, sid)).fetchall():
+                    c.execute("INSERT INTO evidence(tenant_id,case_id,name,category,status,scope_type,scope_id,source,updated) "
+                               "VALUES(?,?,?,?,?,?,?,?,?)",
+                               (tid, req['case_id'], req['requirement_name'], 'supplier', 'complete', 'installation', inst['id'], 'supplier_response', util.now()))
+                engine.run_reconciliation(c, tid, req['case_id'], uid)
+            r = c.execute('SELECT supplier_id FROM supplier_requests WHERE id=?', (rid,)).fetchone()
+            c.commit()
+            return h.redirect(f'/supplier/{r["supplier_id"]}')
+
+        if path == '/installation/create':
+            if not require_perm(a, 'manage_suppliers'):
+                return h.send('Forbidden', 403)
+            sid = int(fv(f, 'supplier_id')) if fv(f, 'supplier_id') else None
+            iid = engine.create_installation(c, tid, sid, fv(f, 'name'), fv(f, 'country'), fv(f, 'production_route'))
+            engine.audit(c, tid, None, uid, 'insta
