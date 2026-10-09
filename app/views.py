@@ -68,6 +68,8 @@ a{color:var(--mint)}
 .tabs a.active{background:var(--mint);color:#06120d;font-weight:800}
 .kv{display:grid;grid-template-columns:170px 1fr;gap:6px 10px;font-size:12.5px}
 .kv div:nth-child(odd){color:#8292a9}
+.journey{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin:16px 0}.journey a{display:block;color:var(--text);text-decoration:none}.journey .step{font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--mint);font-weight:900}.journey h3{font-size:14px;margin:8px 0}.journey p{font-size:12px;color:var(--muted);margin:0;line-height:1.5}.sandbox-banner{border:1px solid #594a27;background:#211c12;color:#f2d99b;padding:12px 14px;border-radius:10px;margin:15px 0}.outcome{border:1px solid #28443e;background:linear-gradient(120deg,#10241f,#101a2a)}
+@media(max-width:1080px){.journey{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:620px){.journey{grid-template-columns:1fr}}
 @media(max-width:1080px){.shell{grid-template-columns:1fr}.side{display:none}.main{padding:18px}.grid,.grid3,.grid5,.two,.formgrid,.formgrid3{grid-template-columns:1fr}}
 '''
 
@@ -140,6 +142,18 @@ def dashboard(c, actor):
     price = latest_price['price_eur'] if latest_price else '—'
     body = f"""<div class="top"><div><div class="eyebrow">Control tower</div><div class="title">Evidence → exception → financial consequence</div>
 <div class="sub">CBAM Evidence OS controls provenance, reconciliation, verifier readiness, and the commercial cost of uncertainty.</div></div><div class="actions"><a class="btn" href="/case/new">+ New case</a></div></div>
+<div class="sandbox-banner"><b>Sandbox mode · human-controlled</b> &nbsp; Exposure is indicative scenario output, not a legal liability or filing figure. Unapproved regulatory values must not be used for customer decisions. No filing is submitted from this workspace.</div>
+<div class="journey">
+<a class="card" href="/cases"><div class="step">01 · Scope</div><h3>Open the case workspace ↗</h3><p>See imports, evidence coverage, readiness and what is blocking progress.</p></a>
+<a class="card" href="/suppliers"><div class="step">02 · Recover evidence</div><h3>Chase supplier gaps ↗</h3><p>Review supplier requests, installation records and supporting documents.</p></a>
+<a class="card" href="/exceptions"><div class="step">03 · Resolve risk</div><h3>Clear exceptions ↗</h3><p>Prioritize conflicts and missing evidence instead of chasing every row manually.</p></a>
+<a class="card" href="/verification"><div class="step">04 · Prove readiness</div><h3>Prepare the review ↗</h3><p>Inspect readiness and preserve a traceable hand-off for human review.</p></a>
+</div>
+<div class="card outcome"><div class="eyebrow">Client outcome view</div><h2 style="margin-top:6px">What needs action now?</h2><div class="grid3">
+<div><div class="label">Evidence workflow blocked</div><div class="kpi" style="color:var(--red)">{blocked_lines}</div><div class="muted small">import lines need attention</div></div>
+<div><div class="label">High-severity exceptions</div><div class="kpi" style="color:{'var(--red)' if high_exceptions else 'var(--mint)'}">{high_exceptions}</div><div class="muted small">open and prioritized</div></div>
+<div><div class="label">Supplier follow-up overdue</div><div class="kpi" style="color:{'var(--amber)' if overdue_requests else 'var(--mint)'}">{overdue_requests}</div><div class="muted small">requests requiring follow-up</div></div>
+</div><p class="muted small">These are live workflow counts for this tenant. They measure operational status, not regulatory compliance or financial savings.</p></div>
 <div class="grid5"><div class="card"><div class="label">Import lines</div><div class="kpi">{total_lines}</div></div>
 <div class="card"><div class="label">Blocked lines</div><div class="kpi" style="color:var(--red)">{blocked_lines}</div></div>
 <div class="card"><div class="label">Ready / calculated</div><div class="kpi" style="color:var(--mint)">{ready_lines}</div></div>
