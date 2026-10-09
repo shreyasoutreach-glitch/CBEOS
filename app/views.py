@@ -522,3 +522,59 @@ tity_unit"])} · {util.esc(line["origin_country"])}</div><div class="arrow">↓<
 <p class="muted small">Resolves intensity from validated installation data first, then the regulatory default value, then a manual override you supply below.</p>
 <form method="post" action="/line/{line["id"]}/calculate"><input type="hidden" name="csrf" value="{util.esc(csrf)}"><div class="formgrid3">
 <div class="field"><label>Quantity override (t, optional)</label><input name="quantity" placeholder="{util.esc(line['quantity'])}"></div>
+<div class="field"><label>Manual intensity override (tCO2e/t, optional)</label><input name="specific_embedded_emissions" placeholder="0"></div>
+<div class="field"><label>Free allocation adjustment (tCO2e)</label><input name="free_allocation_adjustment" value="0"></div>
+<div class="field"><label>Carbon price already paid (€)</label><input name="carbon_price_credit_eur" value="0"></div>
+<div class="field"><label>Certificate price override (€/tCO2e)</label><input name="certificate_price_eur" placeholder="latest published price"></div></div>
+<button class="btn">Run calculation</button></form>'''
+    if calcs:
+        r = json.loads(calcs[0]['result_json'])
+        body += f'''<div class="section successbox"><b>Latest run · {util.esc(calcs[0]["created"])}</b>
+<div class="kv section"><div>Gross embedded</div><div><b>{util.esc(r.get("gross_embedded_emissions_tco2e"))} tCO2e</b></div>
+<div>Net after free allocation</div><div>{util.esc(r.get("net_after_free_allocation_tco2e"))} tCO2e</div>
+<div>Indicative certificate equiv.</div><div>{util.esc(r.get("indicative_certificate_equivalent"))}</div>
+<div>Indicative exposure</div><div><b>€{util.esc(r.get("certificate_exposure_eur") or "0")}</b></div>
+<div>Default-value cost delta</div><div>€{util.esc(r.get("default_value_cost_delta_eur") or "0")}</div>
+<div>Certificate price used</div><div>€{util.esc(r.get("certificate_price_eur_per_tco2e") or "0")}/tCO2e</div>
+<div>Rule set</div><div>{util.esc(json.loads(calcs[0]["input_snapshot"]).get("rule_set",{}).get("version",""))}</div>
+<div>Source</div><div>{util.esc(r.get("source"))}</div>
+<div>Uses default value</div><div>{"Yes — see note" if r.get("uses_default_value") else "No"}</div>
+<div>Status</div><div>{pill_for_status(r.get("status"))}</div></div>
+<div class="muted small section">{util.esc(r.get("note", ""))}</div></div>'''
+    body += '</div>'
+    return layout(actor, f'Import line #{line["id"]}', body, 'cases')
+
+
+# ---------------------------------------------------------------------------
+# Suppliers
+# ---------------------------------------------------------------------------
+
+def suppliers_list(c, actor, csrf):
+    tid = actor['tenant_id']
+    suppliers = c.execute('SELECT * FROM suppliers WHERE tenant_id=? ORDER BY name', (tid,)).fetchall()
+    cases = c.execute('SELECT id FROM cases WHERE tenant_id=?', (tid,)).fetchall()
+    body = f'''<div class="top"><div><div class="eyebrow">Supplier operations</div><div class="title">Suppliers</div>
+<div class="sub">This is the operationally painful layer in CBAM 2026: supplier data collection, not certificate purchasing. Every number here is computed, not narrated.</div></div></div>
+<div class="card section"><form method="post" action="/supplier/create"><input type="hidden" name="csrf" value="{util.esc(csrf)}"><div class="formgrid3">
+<div class="field"><label>Name</label><input name="name" required></div><div class="field"><label>Country</label><input name="country"></div>
+<div class="field"><label>Contact email</label><input name="contact_email"></div></div><button class="btn secondary small">+ Add supplier</button></form></div>
+<div class="card section"><table><tr><th>Supplier</th><th>Country</th><th>Import lines</th><th>Supported</th><th>Blocked</th><th>Evidence complete</th><th>Overdue requests</th><th></th></tr>'''
+    for s in suppliers:
+        agg = {'lines_total': 0, 'lines_supported': 0, 'lines_blocked': 0, 'evidence_complete_pct': 0, 'overdue_requests': 0}
+        n_cases = 0
+        for cs in cases:
+            sc = supplier_ops.supplier_scorecard(c, tid, cs['id'], s['id'])
+            if sc['lines_total']:
+                n_cases += 1
+            agg['lines_total'] += sc['lines_total']; agg['lines_supported'] += sc['lines_supported']
+            agg['lines_blocked'] += sc['lines_blocked']; agg['evidence_complete_pct'] += sc['evidence_complete_pct']
+            agg['overdue_requests'] += sc['overdue_requests']
+        avg_ev = round(agg['evidence_complete_pct'] / n_cases) if n_cases else 100
+        body += (f'<tr><td><b>{util.esc(s["name"])}</b></td><td>{util.esc(s["country"])}</td><td>{agg["lines_total"]}</td>'
+                 f'<td>{agg["lines_supported"]}</td><td style="color:{"var(--red)" if agg["lines_blocked"] else "inherit"}">{agg["lines_blocked"]}</td>'
+                 f'<td>{avg_ev}%</td><td style="color:{"var(--amber)" if agg["overdue_requests"] else "inherit"}">{agg["overdue_requests"]}</td>'
+                 f'<td><a class="btn secondary small" href="/supplier/{s["id"]}">Manage</a></td></tr>')
+    if not suppliers:
+        body += '<tr><td colspan="8">No suppliers yet. Create one or add them through a case workflow.</td></tr>'
+    body += '</table></div>'
+    return layout(actor, 'Suppliers', body, 'suppliers')
