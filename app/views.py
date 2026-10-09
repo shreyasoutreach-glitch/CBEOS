@@ -493,7 +493,7 @@ def suppliers_list(c, actor, csrf):
         body += '<tr><td colspan="8">No suppliers yet. Create one or add them through a case workflow.</td></tr>'
     body += '</table></div>'
     return layout(actor, 'Suppliers', body, 'suppliers')
-lier, csrf):
+def supplier_detail(c, actor, supplier, csrf):
     tid = actor['tenant_id']
     sid = supplier['id']
     installations = c.execute('SELECT * FROM installations WHERE tenant_id=? AND supplier_id=?', (tid, sid)).fetchall()
