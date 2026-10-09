@@ -16,7 +16,7 @@ Sell a measurable operational outcome: supplier evidence recovered, conflicts su
 | 4 | Exceptions and audit | **IMPLEMENTED BASELINE / REVIEW OPEN** | Verify transitions, permissions, immutable history, chain failure and tenant isolation. |
 | 5 | Application security | **REMOTE REGRESSION BASELINE GREEN ON PRIOR MAIN HEAD** | Run CI on this branch; review deployment secrets/configuration, shared rate limiting, upload scanning and external security findings. |
 | 6 | Database operations | **TOOLING/UNIT TESTS PRESENT; LIVE RECOVERY NOT PROVEN** | Execute and record a separate-environment backup/restore and rollback drill. |
-| 7 | Product UX | **OUTCOME-FIRST DASHBOARD IMPLEMENTED ON MEGASPRINT BRANCH; CI PENDING** | Run tests and a full seeded synthetic journey, including empty/error states, accessibility and mobile layout. |
+| 7 | Product UX | **OUTCOME-FIRST DASHBOARD IMPLEMENTED; REGRESSION SUITES PASS ON 9f8f361f21aa0c6ccff39e548835f890e7135325; FOLLOW-UP METADATA HEAD RETEST PENDING** | Run tests and a full seeded synthetic journey, including empty/error states, accessibility and mobile layout. |
 | 8 | Agent workflow | **PARTIAL / REVIEW OPEN** | Verify hand-offs, source citations, bounded inputs, prompt-injection resilience and no automatic consequential actions. |
 | 9 | Release governance | **CORRECTION IN PROGRESS ON MEGASPRINT BRANCH** | Keep every status file aligned with actual evidence; freeze only after release gates pass. |
 | 10 | Sandbox deployment | **NOT AUTHORIZED YET** | Pass branch CI, application/security review, config/secrets checks, health/readiness, recovery/rollback and deployed smoke tests. |
