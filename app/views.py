@@ -473,3 +473,52 @@ def import_line_detail(c, actor, line, csrf):
 <div class="card"><div class="label">Open exceptions</div><div class="kpi">{len(exceptions)}</div></div></div>'''
     if risk_reasons:
         body += '<div class="warnbox"><b>Risk drivers</b><ul>' + ''.join(f'<li>{util.esc(x)}</li>' for x in risk_reasons) + '</ul></div>'
+tity_unit"])} · {util.esc(line["origin_country"])}</div><div class="arrow">↓</div>'
+    body += f'<div class="node"><b>Product / CN</b> {util.esc(line["cn_code"])}' + (f' — {util.esc(product["description"])} ({util.esc(product["sector"])})' if product else ' — not catalogued yet') + '</div><div class="arrow">↓</div>'
+    body += f'<div class="node"><b>Supplier</b> {util.esc(supplier["name"]) if supplier else "unassigned"}' + (f' · {util.esc(supplier["country"])}' if supplier else '') + '</div><div class="arrow">↓</div>'
+    body += f'<div class="node"><b>Installation</b> {util.esc(installation["name"]) if installation else "unassigned"}' + (f' · {util.esc(installation["production_route"] or "route not documented")}' if installation else '') + '</div><div class="arrow">↓</div>'
+    if emissions:
+        e0 = emissions[0]
+        m = c.execute('SELECT * FROM methodologies WHERE id=?', (e0['methodology_id'],)).fetchone()
+        body += (f'<div class="node"><b>Embedded emissions</b> direct {util.esc(e0["direct_intensity"] or "—")} / indirect '
+                 f'{util.esc(e0["indirect_intensity"] or "—")} tCO2e/t · methodology {util.esc(m["name"] if m else "not set")} · '
+                 f'{pill_for_status(e0["status"])}</div><div class="arrow">↓</div>')
+    else:
+        body += '<div class="node"><b>Embedded emissions</b> <span class="pill bad">no installation-level record yet</span></div><div class="arrow">↓</div>'
+    if facts:
+        f0 = facts[0]
+        body += (f'<div class="node"><b>Source document</b> {util.esc(f0["filename"])} ({util.esc(f0["doc_type"])})</div><div class="arrow">↓</div>'
+                 f'<div class="node"><b>Extracted fact</b> {util.esc(FIELD_LABELS.get(f0["field"], f0["field"]))} = {util.esc(f0["value"])} '
+                 f'@ {util.esc(f0["location"])} — “{util.esc(f0["source_excerpt"])}”</div><div class="arrow">↓</div>'
+                 f'<div class="node"><b>Validation</b> {pill_for_status(f0["status"])}' +
+                 (f' by user #{f0["verified_by"]} at {util.esc(f0["verified_at"])}' if f0['verified_by'] else ' — awaiting reviewer') + '</div><div class="arrow">↓</div>')
+    else:
+        body += '<div class="node"><b>Source document / extracted fact</b> <span class="pill bad">no documents linked to this line yet</span></div><div class="arrow">↓</div>'
+    if calcs:
+        r = json.loads(calcs[0]['result_json'])
+        body += (f'<div class="node"><b>Calculation run</b> #{calcs[0]["id"]} · gross {util.esc(r.get("gross_embedded_emissions_tco2e"))} tCO2e · '
+                 f'{pill_for_status(r.get("status"))}</div><div class="arrow">↓</div>')
+    else:
+        body += '<div class="node"><b>Calculation run</b> <span class="pill warn">not yet run</span></div><div class="arrow">↓</div>'
+    body += '<div class="node"><b>Declaration package</b> included when the case declaration is generated.</div>'
+    body += '</div></div>'
+
+    if readiness:
+        body += f'''<div class="card section"><h2>Installation verification readiness</h2>
+<div class="kpi">{readiness["score"]}%</div>{pill_for_status(readiness["status"])}<ul class="checklist section">'''
+        for label, ok, reason in readiness['checklist']:
+            body += f'<li><span class="tick {"yes" if ok else "no"}">{"✓" if ok else "✗"}</span><div><b>{util.esc(label)}</b><div class="muted">{util.esc(reason)}</div></div></li>'
+        flabel, fok, freason = readiness['future_item']
+        body += f'<li><span class="tick {"yes" if fok else "no"}">{"✓" if fok else "○"}</span><div><b>{util.esc(flabel)}</b> <span class="pill info">not yet applicable</span><div class="muted">{util.esc(freason)}</div></div></li>'
+        body += '</ul></div>'
+
+    if exceptions:
+        body += '<div class="card section"><h2>Open exceptions on this line</h2>'
+        for e in exceptions:
+            body += f'<div class="dangerbox"><b>{util.esc(e["title"])}</b> {pill_for_status(e["severity"])} {pill_for_status(e["status"])}<div class="muted small">{util.esc(e["detail"])}</div></div>'
+        body += '</div>'
+
+    body += f'''<div class="card section"><h2>Run calculation for this line</h2>
+<p class="muted small">Resolves intensity from validated installation data first, then the regulatory default value, then a manual override you supply below.</p>
+<form method="post" action="/line/{line["id"]}/calculate"><input type="hidden" name="csrf" value="{util.esc(csrf)}"><div class="formgrid3">
+<div class="field"><label>Quantity override (t, optional)</label><input name="quantity" placeholder="{util.esc(line['quantity'])}"></div>
