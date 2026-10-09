@@ -22,6 +22,7 @@ class SecurityTests(unittest.TestCase):
   if ctype:h['Content-Type']=ctype
   c.request(method,path,data,h);r=c.getresponse();out=(r.status,dict(r.getheaders()),r.read().decode('utf-8','replace'));c.close();return out
  def login(self,email='security@example.test',password='security-test-password'):
+  security.clear_attempts(f'127.0.0.1:{email}')
   s,h,b=self.req('POST','/login',{'email':email,'password':password});self.assertEqual(s,303,b);return h['Set-Cookie'].split(';')[0]
  def csrf(self,body):
   m=re.search(r'name="csrf" value="([^"]+)"',body);return m.group(1) if m else ''
