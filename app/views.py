@@ -756,3 +756,82 @@ def verification_overview(c, actor):
                  f'<td><a class="btn secondary small" href="/installation/{i["id"]}">Open</a></td></tr>')
     body += '</table></div>'
     return layout(actor, 'Verification', body, 'verification')
+ot rows:
+        body += '<tr><td colspan="5" class="muted">No installations yet.</td></tr>'
+    body += '</table></div>'
+    return layout(actor, 'Verification', body, 'verification')
+
+
+# ---------------------------------------------------------------------------
+# Declaration package
+# ---------------------------------------------------------------------------
+
+def declaration_view(c, actor, case, csrf):
+    tid, cid = actor['tenant_id'], case['id']
+    packages = c.execute('SELECT * FROM declaration_packages WHERE tenant_id=? AND case_id=? ORDER BY id DESC', (tid, cid)).fetchall()
+    sc, rd = engine.readiness(c, tid, cid)
+    body = f'''<div class="top"><div><div class="eyebrow">Declaration package · {util.esc(case["case_name"])}</div>
+<div class="title">Verifier / management handoff</div>
+<div class="sub">A structured, hashed evidence manifest. This prepares declaration-ready data; it does not submit anything to the CBAM Registry
+(that step requires the authorised declarant acting through the official channel).</div></div>
+<div class="actions"><form method="post" action="/case/{cid}/declaration/generate"><input type="hidden" name="csrf" value="{util.esc(csrf)}">
+<button class="btn" {"disabled" if not rd["ready"] else ""}>Generate package</button></form></div></div>'''
+    if not rd['ready']:
+        body += '<div class="warnbox">Generating is still allowed for review purposes, but the case has open blockers: ' + '; '.join(rd['blockers']) + '</div>'
+    for p in packages:
+        manifest = json.loads(p['manifest_json'])
+        body += f'''<div class="card section"><h2>Package #{p["id"]} · {util.esc(p["generated_at"])}</h2>
+<div class="kv"><div>SHA-256</div><div class="source">{util.esc(p["sha256"])}</div>
+<div>Readiness at generation</div><div>{manifest["readiness"]["score"]}%</div>
+<div>Import lines</div><div>{len(manifest.get("import_lines", []))}</div>
+<div>Suppliers</div><div>{len(manifest.get("suppliers", []))}</div>
+<div>Installations</div><div>{len(manifest.get("installations", []))}</div>
+<div>Documents in manifest</div><div>{len(manifest.get("documents", []))}</div>
+<div>Open exceptions at generation</div><div>{manifest["readiness"]["open_issues"]}</div></div>
+<div class="muted small section">IMPLEMENTED: evidence manifest, provenance, hash. REQUIRES EXTERNAL INTEGRATION: authorised submission to the
+CBAM Registry, and independent legal/verifier sign-off before any figure here is relied upon externally.</div></div>'''
+    if not packages:
+        body += '<div class="card section muted">No declaration package generated yet.</div>'
+    return layout(actor, 'Declaration package', body, 'cases')
+
+
+# ---------------------------------------------------------------------------
+# Audit
+# ---------------------------------------------------------------------------
+
+def audit_view(c, actor):
+    tid = actor['tenant_id']
+    ok, break_id = engine.verify_audit_chain(c, tid)
+    rows = c.execute('SELECT * FROM audit WHERE tenant_id=? ORDER BY id DESC LIMIT 250', (tid,)).fetchall()
+    body = f'''<div class="top"><div><div class="eyebrow">Audit trail</div><div class="title">Append-only, hash-chained</div>
+<div class="sub">Every consequential action is recorded with who/what/when and a hash of the previous entry.</div></div></div>
+{"<div class=\"successbox\">Chain integrity verified: no breaks detected.</div>" if ok else f"<div class=\"dangerbox\">Chain integrity check FAILED at audit id {break_id}.</div>"}
+<div class="card section"><table><tr><th>When</th><th>Action</th><th>Detail</th><th>Hash</th></tr>'''
+    for r in rows:
+        body += f'<tr><td class="small">{util.esc(r["created"])}</td><td><b>{util.esc(r["action"])}</b></td><td class="small">{util.esc(r["detail"])}</td><td class="source">{util.esc(r["hash"][:16])}…</td></tr>'
+    body += '</table></div>'
+    return layout(actor, 'Audit', body, 'audit')
+
+
+# ---------------------------------------------------------------------------
+# Regulatory sources
+# ---------------------------------------------------------------------------
+
+def sources_view(c, actor):
+    rows = c.execute('SELECT s.*,r.code rcode,r.version FROM regulatory_sources s LEFT JOIN rule_sets r ON r.source_id=s.id ORDER BY s.id', ()).fetchall()
+    updates = c.execute('SELECT * FROM regulatory_updates ORDER BY announced_date DESC', ()).fetchall()
+    body = '<div class="top"><div><div class="eyebrow">Regulatory source governance</div><div class="title">Rule sources &amp; version control</div>' \
+           '<div class="sub">Every consequential rule must point to a legal source, effective date and version. This registry distinguishes official, secondary-sourced and illustrative values.</div></div></div>'
+    body += '<div class="card section"><h2>Source register</h2><table><tr><th>Code</th><th>Title</th><th>Effective</th><th>Version</th><th>Notes</th></tr>'
+    for r in rows:
+        body += f'<tr><td><b>{util.esc(r["code"])}</b></td><td><a href="{util.esc(r["url"])}" target="_blank" rel="noopener">{util.esc(r["title"])}</a></td><td>{util.esc(r["effective_date"])}</td><td>{util.esc(r["version"] or "—")}</td><td class="small">{util.esc(r["notes"])}</td></tr>'
+    body += '</table></div><div class="card section"><h2>Regulatory change log</h2><table><tr><th>Announced</th><th>Change</th><th>Effective</th><th>Scope / impact</th><th>Product implication</th></tr>'
+    for u in updates:
+        body += f'<tr><td>{util.esc(u["announced_date"])}</td><td><b>{util.esc(u["title"])}</b></td><td>{util.esc(u["effective_date"])}</td><td class="small">{util.esc(u["affected_scope"])}<div class="muted">{util.esc(u["impact"])}</div></td><td class="small">{util.esc(u["product_implication"])}</td></tr>'
+    body += '</table></div>'
+    body += '<div class="card section"><h2>Default-value confidence and source status</h2><table><tr><th>CN prefix</th><th>Sector</th><th>Country</th><th>Route</th><th>Total</th><th>Confidence</th><th>Notes</th></tr>'
+    vals = c.execute('SELECT * FROM default_values ORDER BY sector,cn_prefix,id', ()).fetchall()
+    for v in vals:
+        body += f'<tr><td>{util.esc(v["cn_prefix"] or "sector fallback")}</td><td>{util.esc(v["sector"])}</td><td>{util.esc(v["country"] or "all")}</td><td>{util.esc(v["production_route"] or "all")}</td><td>{util.esc(v["total_default"])}</td><td>{pill_for_status(v["confidence"])}</td><td class="small">{util.esc(v["markup_note"])}</td></tr>'
+    body += '</table><div class="dangerbox">Illustrative defaults are not legal inputs. The corrected official default-value dataset has not yet been fully reconciled and promoted in this build.</div></div>'
+    return layout(actor, 'Regulatory sources', body, 'sources')
