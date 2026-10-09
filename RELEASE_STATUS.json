@@ -5,7 +5,7 @@
   "local_test_suite": "PASS_9_SUITES_INCLUDING_DB_RECOVERY_AND_HEALTH_PROBES",
   "local_compileall": "PASS",
   "github_publication": "PARTIAL_SOURCE_TREE_PUBLISHED_TO_MAIN",
-  "remote_ci": "PASS_ALL_9_REGRESSION_SUITES_AND_COMPILEALL_ON_2026-10-10",
+  "remote_ci": "PASS_AT_3fbc1879157b365c62710850433c4e16eb69c6a6",
   "remote_dependency_audit": "PASS_NO_KNOWN_VULNERABILITIES_IN_PUBLISHED_REQUIREMENTS",
   "sprint_1": "BLOCKED_BINDING_ANNEX_RECONCILIATION",
   "sprint_2": "CALCULATION_RULES_HARDENED_LOCAL_TESTS_PASS_NOT_SIGNED_OFF",
@@ -27,11 +27,15 @@
   "antigravity_verification_complete": false,
   "client_outreach_authorized": false,
   "notes": [
-    "GitHub Actions run 37978918315 on commit 91f030842693ba8cbe76e51c3c16424314c48a10 passed: pip-audit reported no known vulnerabilities, compileall passed, and all 9 regression suites passed.",
-    "The next documentation-only commit has its own CI run in progress; verify the latest run before calling the branch green at HEAD.",
-    "Public source publication is partial: the runtime app, regression suites, and governance/staging tools are published, but the source workbook inputs and full canonical legal dataset are not included or promoted.",
-    "Only 7 curated binding-source spot checks are confirmed against 14,627 staged records. 14,620 rows remain pending canonical reconciliation. Pending means not reconciled, not necessarily incorrect.",
-    "No regulatory dataset has been promoted; no production deployment, off-host recovery drill, or independent Antigravity verification has occurred."
+    "GitHub Actions run 37979224155 on commit 3fbc1879157b365c62710850433c4e16eb69c6a6 passed: pip-audit reported no known vulnerabilities, compileall passed, and all nine regression suites passed.",
+    "GitHub Actions run 37979224153 fetched all five official EUR-Lex HTML sources with HTTP 200 and produced source-located table extraction rows. Artifact: https://github.com/shreyasoutreach-glitch/CBEOS/actions/runs/37979224153/artifacts/11641070061 ; SHA-256 81238194daa0df176de8d40b69cc8ad0ee64f04bad513d0c3407b0c2ac0621d6. Artifact retention expires 2026-10-16.",
+    "Acquisition and table extraction are raw/unreviewed only. Extracted table counts are not proof of complete annex extraction; source structure, annex identity, code/country/route, units, effective dates and completeness still need validation.",
+    "Public source publication is partial with respect to the local workspace and source inputs. The raw legal workbooks were not committed.",
+    "Only 7 curated binding-source spot checks are confirmed against 14,627 staged records. 14,620 records remain pending canonical reconciliation. Pending means not reconciled, not necessarily incorrect.",
+    "No canonical regulatory dataset has been promoted; no production deployment, off-host recovery drill, independent Antigravity verification, or client outreach has occurred."
   ],
-  "github_published": true
+  "github_published": true,
+  "network_source_acquisition": "FETCHED_5_OFFICIAL_EURLEX_SOURCES_RAW_UNREVIEWED",
+  "source_artifact": "https://github.com/shreyasoutreach-glitch/CBEOS/actions/runs/37979224153/artifacts/11641070061",
+  "source_artifact_sha256": "81238194daa0df176de8d40b69cc8ad0ee64f04bad513d0c3407b0c2ac0621d6"
 }
