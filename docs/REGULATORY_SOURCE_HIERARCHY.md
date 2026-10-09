@@ -5,7 +5,7 @@
 1. Binding EU legislation published in the Official Journal / EUR-Lex, including the act's applicable annexes.
 2. Consolidated binding text where its status and consolidation date are explicit; verify against the act when discrepancies matter.
 3. Commission implementation guidance and Registry instructions, for operational interpretation only.
-4. Commission informational workbooks, portals, FAQs and supporting spreadsheets. Useful for discovery and reconciliation, not legally binding where the underlying act says otherwise.
+4. Commission informational workbooks, portals, FAQs and supporting spreadsheets. The supplied workbook states it is for informational purposes only and is not legally binding; use it for discovery and reconciliation, not to approve values.
 5. Secondary commentary and vendor summaries. Use only to locate the primary source, not to approve values.
 6. Internal assumptions and demonstrators. Must be explicitly labelled illustrative and must never silently become canonical regulatory data.
 
@@ -42,3 +42,6 @@ The official dataset may be promoted only after:
 ## Status at current preflight
 
 The legal pipeline contains 14,627 staged records. Seven curated canonical-source spot checks passed. 14,620 records remain pending canonical reconciliation. “Pending” means not reconciled; it does not prove the row is wrong or right. Nothing from this partial comparison is approved or promoted as the runtime legal dataset.
+
+
+Internal staging state: every ingested workbook row remains `staged_unverified` until a reviewer reconciles it against the binding source and records explicit approval. Staging is not promotion.
