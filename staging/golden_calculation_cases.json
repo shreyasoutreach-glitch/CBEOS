@@ -1,0 +1,18 @@
+{
+  "suite": "CBEOS CBAM independent golden calculations v1",
+  "status": "PASS",
+  "status_scope": "Independent arithmetic and selector regression checks; not legal sign-off.",
+  "cases": [
+    {"id":"GC-01","type":"default_markup","source_celex":"32026R1740","source_locator":"Annex I, Albania, extracted table 29 row 6","source_sha256":"754b3456caec30b8f6fae146805f9d7ddaeed2bdcf262e1d094043c4f8230d92","sector":"cement","year":2026,"base_total":"0.870","markup_pct":"10","expected_marked_total":"0.9570","manual_check":"0.870 × 1.10 = 0.957"},
+    {"id":"GC-02","type":"default_markup","source_celex":"32026R1740","source_locator":"Annex I, Azerbaijan, extracted table 35 row 105","source_sha256":"754b3456caec30b8f6fae146805f9d7ddaeed2bdcf262e1d094043c4f8230d92","sector":"iron_steel","year":2027,"base_total":"0.140","route":"(E)","markup_pct":"20","expected_marked_total":"0.1680","manual_check":"0.140 × 1.20 = 0.168"},
+    {"id":"GC-03","type":"default_markup","source_celex":"32026R1740","source_locator":"Annex I, Algeria, extracted table 30 row 43","source_sha256":"754b3456caec30b8f6fae146805f9d7ddaeed2bdcf262e1d094043c4f8230d92","sector":"aluminium","year":2028,"base_total":"0.360","route":"(L)","markup_pct":"30","expected_marked_total":"0.4680","manual_check":"0.360 × 1.30 = 0.468"},
+    {"id":"GC-04","type":"default_markup_total_field","source_celex":"32026R1740","source_locator":"Annex I, Albania, extracted table 29 row 13","source_sha256":"754b3456caec30b8f6fae146805f9d7ddaeed2bdcf262e1d094043c4f8230d92","sector":"fertilisers","year":2026,"base_total":"2.760","direct":"2.730","indirect":"0.040","component_sum":"2.770","markup_pct":"1","expected_marked_total":"2.7876","incorrect_recomputed_total_result":"2.7977","manual_check":"Use total field: 2.760 × 1.01 = 2.7876; do not reconstruct total from components."},
+    {"id":"GC-05","type":"benchmark_route_selection","source_celex":"32025R2620","source_locator":"Annex benchmark table, extracted table 62 row 134","source_sha256":"423a322e4def4b4bbcfd2a3c472e07417e32870dd76aed68008e4d7d42930cbf","code":"72111300","column":"b","required_route":"(E)","expected_value":"0.072","manual_check":"Route E selects 0.072; route D 0.481 and route C 1.370 must not be substituted."},
+    {"id":"GC-06","type":"route_independence_guard","source_celex":"32025R2620","source_locator":"Annex benchmark table, extracted table 62 row 134, Column A","source_sha256":"423a322e4def4b4bbcfd2a3c472e07417e32870dd76aed68008e4d7d42930cbf","code":"72111300","column":"a","value":"0.044","required_route":"(E)","expected_without_explicit_approval":"BLOCK","expected_with_explicit_approval":"0.044"}
+  ],
+  "review_limits": [
+    "Source HTML remains EXTRACTED_UNREVIEWED; row matching is not legal approval.",
+    "These tests do not independently validate every liability, complex-good, precursor, carbon-credit or free-allocation rule.",
+    "No dataset promotion or live filing is authorized."
+  ]
+}
