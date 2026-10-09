@@ -1,0 +1,34 @@
+name: Acquire official CBAM sources (unreviewed)
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/acquire-official-sources.yml'
+      - 'tools/acquire_eurlex_sources.py'
+permissions:
+  contents: read
+jobs:
+  acquire:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python tools/acquire_eurlex_sources.py --out staging/official_sources --timeout 30 --retries 2
+        continue-on-error: true
+      - name: Show acquisition manifest
+        if: always()
+        run: |
+          if [ -f staging/official_sources/acquisition_manifest.json ]; then
+            cat staging/official_sources/acquisition_manifest.json
+          else
+            echo "No manifest was generated."
+          fi
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: cbeos-official-sources-unreviewed
+          path: staging/official_sources/
+          if-no-files-found: warn
+          retention-days: 7
