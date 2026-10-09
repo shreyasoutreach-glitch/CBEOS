@@ -692,3 +692,67 @@ def installation_detail(c, actor, installation, csrf):
         body += f'<tr><td>#{l["id"]}</td><td>{util.esc(l["cn_code"])}</td><td>{util.esc(l["quantity"])}</td><td>{pill_for_status(l["status"])}</td><td><a class="btn secondary small" href="/line/{l["id"]}">Trace →</a></td></tr>'
     body += '</table></div>'
     return layout(actor, installation['name'], body, 'installations')
+" href="/line/{l["id"]}">Trace →</a></td></tr>'
+    body += '</table></div>'
+    return layout(actor, installation['name'], body, 'installations')
+
+
+# ---------------------------------------------------------------------------
+# Exceptions queue
+# ---------------------------------------------------------------------------
+
+def exceptions_queue(c, actor, csrf):
+    tid = actor['tenant_id']
+    rows = c.execute('SELECT e.*,ca.case_name FROM exceptions e JOIN cases ca ON ca.id=e.case_id WHERE e.tenant_id=? '
+                       "ORDER BY CASE WHEN e.status IN ('RESOLVED','ACCEPTED_WITH_RISK','WAIVED') THEN 1 ELSE 0 END,"
+                       "CASE e.severity WHEN 'high' THEN 0 WHEN 'medium' THEN 1 ELSE 2 END, e.id DESC LIMIT 200", (tid,)).fetchall()
+    open_n = sum(1 for r in rows if r['status'] not in ('RESOLVED', 'ACCEPTED_WITH_RISK', 'WAIVED'))
+    body = f'''<div class="top"><div><div class="eyebrow">Exception queue</div><div class="title">The operational product</div>
+<div class="sub">{open_n} open across the portfolio. Every discrepancy is actionable: owner, deadline, and a state machine, not a silent AI guess.</div></div></div>'''
+    for e in rows:
+        cls = 'dangerbox' if e['status'] not in ('RESOLVED', 'ACCEPTED_WITH_RISK', 'WAIVED') else 'card'
+        body += f'<div class="{cls} section" id="e{e["id"]}"><b>{util.esc(e["title"])}</b> {pill_for_status(e["severity"])} {pill_for_status(e["status"])} ' \
+                f'<span class="muted small">· case {util.esc(e["case_name"])} · category {util.esc(e["category"])}</span>' \
+                f'<div class="muted small" style="margin-top:5px">{util.esc(e["detail"])}</div>'
+        if e['recommended_action']:
+            body += f'<div class="small" style="margin-top:5px"><b>Recommended:</b> {util.esc(e["recommended_action"])}</div>'
+        if e['status'] not in ('RESOLVED', 'ACCEPTED_WITH_RISK', 'WAIVED'):
+            body += f'''<form method="post" action="/exception/transition" style="margin-top:8px" class="formgrid3">
+<input type="hidden" name="id" value="{e["id"]}"><input type="hidden" name="csrf" value="{util.esc(csrf)}">
+<div class="field"><label>New status</label><select name="status">
+<option value="UNDER_REVIEW">Under review</option><option value="WAITING_SUPPLIER">Waiting on supplier</option>
+<option value="WAITING_INTERNAL">Waiting internally</option><option value="RESOLVED">Resolved</option>
+<option value="ACCEPTED_WITH_RISK">Accept with risk</option><option value="BLOCKED">Blocked</option>
+<option value="WAIVED">Waived</option></select></div>
+<div class="field"><label>Owner</label><input name="owner" value="{util.esc(e["owner"])}"></div>
+<div class="field"><label>Deadline</label><input type="date" name="deadline" value="{util.esc(e["deadline"])}"></div>
+<div class="field" style="grid-column:1/-1"><label>Resolution note</label><textarea name="resolution"></textarea></div>
+<button class="btn small">Update</button></form>'''
+        body += '</div>'
+    if not rows:
+        body += '<div class="successbox">No exceptions recorded yet.</div>'
+    return layout(actor, 'Exceptions', body, 'exceptions')
+
+
+# ---------------------------------------------------------------------------
+# Verification overview
+# ---------------------------------------------------------------------------
+
+def verification_overview(c, actor):
+    tid = actor['tenant_id']
+    rows = c.execute('SELECT i.*,s.name sname FROM installations i LEFT JOIN suppliers s ON s.id=i.supplier_id WHERE i.tenant_id=? ORDER BY i.name', (tid,)).fetchall()
+    scored = [(i, engine.verification_readiness(c, tid, i['id'])) for i in rows]
+    avg = round(sum(r['score'] for _, r in scored) / len(scored)) if scored else 0
+    ready_n = sum(1 for _, r in scored if r['status'] == 'READY')
+    body = f'''<div class="top"><div><div class="eyebrow">Verification readiness</div><div class="title">The trust layer</div>
+<div class="sub">Installation-level readiness -- the bridge between your evidence and what a verifier will still need.</div></div></div>
+<div class="grid3"><div class="card"><div class="label">Installations</div><div class="kpi">{len(rows)}</div></div>
+<div class="card"><div class="label">Ready</div><div class="kpi" style="color:var(--mint)">{ready_n}</div></div>
+<div class="card"><div class="label">Portfolio average</div><div class="kpi">{avg}%</div></div></div>
+<div class="card section"><table><tr><th>Installation</th><th>Supplier</th><th>Readiness</th><th>Status</th><th></th></tr>'''
+    for i, r in scored:
+        body += (f'<tr><td><b>{util.esc(i["name"])}</b></td><td>{util.esc(i["sname"] or "—")}</td>'
+                 f'<td>{r["score"]}%</td><td>{pill_for_status(r["status"])}</td>'
+                 f'<td><a class="btn secondary small" href="/installation/{i["id"]}">Open</a></td></tr>')
+    body += '</table></div>'
+    return layout(actor, 'Verification', body, 'verification')
