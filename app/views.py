@@ -148,11 +148,11 @@ def dashboard(c, actor):
 <div class=\"card section\"><h2>Commercial exposure control</h2><p class=\"muted small\">Latest published CBAM certificate price: <b>€{util.esc(latest_price['price_eur'] if latest_price else '—')}/tCO2e</b>. Exposure is scenario-only and uses the exact price stored with each calculation.</p><div class=\"kpi\">{util.money(exposure)}</div></div>\"\"\"
     updates = c.execute(\"SELECT * FROM regulatory_updates WHERE status='ACTIVE' ORDER BY announced_date DESC LIMIT 4\").fetchall()
     body += '<div class=\\\"card section\\\"><h2>Regulatory changes that affect the product</h2>'
-    for u in updates:
+    body += '<div class="card section"><h2>Regulatory changes that affect the product</h2>'
         body += f'<div class=\\\"warnbox small\\\"><b>{util.esc(u[\\\"title\\\"])}</b><br>{util.esc(u[\\\"impact\\\"])} <span class=\\\"muted\\\">Product: {util.esc(u[\\\"product_implication\\\"])}</span></div>'
-    body += '</div>'
+        body += f'<div class="warnbox small"><b>{util.esc(u["title"])}</b><br>{util.esc(u["impact"])} <span class="muted">Product: {util.esc(u["product_implication"])}</span></div>'
     body += '<div class=\\\"card section\\\"><h2>Case portfolio</h2><table><tr><th>Case</th><th>Period</th><th>Readiness</th><th>Blockers</th><th></th></tr>'
-    for x in cases:
+    body += '<div class="card section"><h2>Case portfolio</h2><table><tr><th>Case</th><th>Period</th><th>Readiness</th><th>Blockers</th><th></th></tr>'
         sc, rd = engine.readiness(c, tid, x['id'])
         cls = 'good' if rd['ready'] else ('warn' if sc >= 60 else 'bad')
         body += f'<tr><td><b>{util.esc(x[\\\"case_name\\\"])}</b><div class=\\\"muted small\\\">{util.esc(x[\\\"company\\\"])} · {util.esc(x[\\\"sector\\\"] or \\\"sector not set\\\")}</div></td><td>{util.esc(x[\\\"period\\\"])}</td><td><span class=\\\"pill {cls}\\\">{sc}%</span></td><td class=\\\"small\\\">{util.esc(\\\" · \\\".join(rd[\\\"blockers\\\"][:3]) or \\\"No current blockers\\\")}</td><td><a class=\\\"btn secondary\\\" href=\\\"/case/{x[\\\"id\\\"]}\\\">Open</a></td></tr>'
