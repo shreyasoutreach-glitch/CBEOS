@@ -427,106 +427,42 @@ Trace page for an individual import line.</p><form method="post" action="/calcul
 
 def import_line_detail(c, actor, line, csrf):
     tid = actor['tenant_id']
-    case = c.execute('SELECT * FROM cases WHERE id=?', (line['case_id'],)).fetchone()
-    supplier = c.execute('SELECT * FROM suppliers WHERE id=?', (line['supplier_id'],)).fetchone() if line['supplier_id'] else None
-    installation = c.execute('SELECT * FROM installations WHERE id=?', (line['installation_id'],)).fetchone() if line['installation_id'] else None
-    product = c.execute('SELECT * FROM products WHERE tenant_id=? AND cn_code=?', (tid, line['cn_code'])).fetchone()
-    facts = c.execute('SELECT f.*,d.filename,d.doc_type FROM facts f JOIN documents d ON d.id=f.document_id '
-                        'WHERE f.tenant_id=? AND (f.import_line_id=? OR f.installation_id=?) ORDER BY f.id DESC',
-                        (tid, line['id'], line['installation_id'] or -1)).fetchall()
-    emissions = c.execute("SELECT * FROM emissions_data WHERE tenant_id=? AND installation_id=? ORDER BY id DESC",
-                            (tid, line['installation_id'] or -1)).fetchall()
-    calcs = c.execute('SELECT * FROM calculation_runs WHERE tenant_id=? AND import_line_id=? ORDER BY id DESC', (tid, line['id'])).fetchall()
-    exceptions = c.execute("SELECT * FROM exceptions WHERE tenant_id=? AND ((affected_entity_type='import_line' AND affected_entity_id=?) "
-                             "OR (affected_entity_type='installation' AND affected_entity_id=?)) AND status NOT IN "
-                             "('RESOLVED','ACCEPTED_WITH_RISK','WAIVED') ORDER BY id DESC", (tid, line['id'], line['installation_id'] or -1)).fetchall()
-    readiness = engine.verification_readiness(c, tid, line['installation_id']) if line['installation_id'] else None
-    risk_score, risk_reasons = engine.import_line_control_risk(c, tid, line['case_id'], line['id'])
-
-    body = f'''<div class="top"><div><div class="eyebrow">Import line #{line['id']} · evidence graph</div><div class="title">{util.esc(line['description'] or line['cn_code'])}</div>
-<div class="sub">{util.esc(case['case_name'] if case else 'Case missing')} · {util.esc(case['period'] if case else '')} · CN {util.esc(line['cn_code'])}</div></div>
-<div class="actions"><a class="btn secondary" href="/case/{line['case_id']}">Back to case</a></div></div>
-<div class="grid"><div class="card"><div class="label">Control risk score</div><div class="kpi">{risk_score}/100</div><span class="pill {'good' if risk_score >= 80 else ('warn' if risk_score >= 55 else 'bad')}">{'LOW' if risk_score >= 80 else ('MEDIUM' if risk_score >= 55 else 'HIGH')} WORKFLOW RISK</span></div>
-<div class="card"><div class="label">Quantity</div><div class="kpi">{util.esc(line['quantity'] or '—')} t</div></div>
-<div class="card"><div class="label">Evidence facts</div><div class="kpi">{len(facts)}</div><div class="muted small">{sum(1 for f in facts if f['status']=='verified')} human-verified</div></div>
-<div class="card"><div class="label">Open exceptions</div><div class="kpi">{len(exceptions)}</div></div></div>'''
+    case = c.execute('SELECT * FROM cases WHERE id=? AND tenant_id=?', (line['case_id'], tid)).fetchone()
+    supplier = c.execute('SELECT * FROM suppliers WHERE id=? AND tenant_id=?', (line['supplier_id'], tid)).fetchone() if line['supplier_id'] else None
+    installation = c.execute('SELECT * FROM installations WHERE id=? AND tenant_id=?', (line['installation_id'], tid)).fetchone() if line['installation_id'] else None
+    product = c.execute('SELECT * FROM product_catalog WHERE cn_code=? ORDER BY id DESC LIMIT 1', (line['cn_code'],)).fetchone()
+    facts = c.execute('SELECT * FROM evidence_facts WHERE tenant_id=? AND import_line_id=? ORDER BY id DESC', (tid, line['id'])).fetchall()
+    exceptions = c.execute("SELECT * FROM exceptions WHERE tenant_id=? AND case_id=? AND status NOT IN ('RESOLVED','ACCEPTED_WITH_RISK','WAIVED') ORDER BY id DESC", (tid, line['case_id'])).fetchall()
+    risk_score, risk_reasons = engine.import_line_risk(c, tid, line['id'])
+    body = f'''<div class="top"><div><div class="eyebrow">Import line #{line['id']} · evidence graph</div><div class="title">{util.esc(line['description'] or line['cn_code'])}</div><div class="sub">{util.esc(case['case_name'] if case else 'Case missing')} · {util.esc(case['period'] if case else '')} · CN {util.esc(line['cn_code'])}</div></div><div class="actions"><a class="btn secondary" href="/case/{line['case_id']}">Back to case</a></div></div>
+<div class="grid"><div class="card"><div class="label">Control risk score</div><div class="kpi">{risk_score}/100</div><span class="pill {'good' if risk_score >= 80 else ('warn' if risk_score >= 55 else 'bad')}">{'LOW' if risk_score >= 80 else ('MEDIUM' if risk_score >= 55 else 'HIGH')} WORKFLOW RISK</span></div><div class="card"><div class="label">Quantity</div><div class="kpi">{util.esc(line['quantity'] or '—')} {util.esc(line['quantity_unit'])}</div></div><div class="card"><div class="label">Evidence facts</div><div class="kpi">{len(facts)}</div><div class="muted small">{sum(1 for f in facts if f['status']=='verified')} human-verified</div></div><div class="card"><div class="label">Open exceptions</div><div class="kpi">{len(exceptions)}</div></div></div>'''
     if risk_reasons:
         body += '<div class="warnbox"><b>Risk drivers</b><ul>' + ''.join(f'<li>{util.esc(x)}</li>' for x in risk_reasons) + '</ul></div>'
-tity_unit"])} · {util.esc(line["origin_country"])}</div><div class="arrow">↓</div>'
-    body += f'<div class="node"><b>Product / CN</b> {util.esc(line["cn_code"])}' + (f' — {util.esc(product["description"])} ({util.esc(product["sector"])})' if product else ' — not catalogued yet') + '</div><div class="arrow">↓</div>'
+    body += '<div class="card section"><h2>Evidence lineage</h2><div class="trace">'
+    body += f'<div class="node"><b>Import line</b> {util.esc(line["description"] or line["cn_code"])} · {util.esc(line["quantity"])} {util.esc(line["quantity_unit"])} · {util.esc(line["origin_country"])}</div><div class="arrow">↓</div>'
+    body += f'<div class="node"><b>Product / CN</b> {util.esc(line["cn_code"])}' + (f' · {util.esc(product["description"])} ({util.esc(product["sector"])})' if product else ' · not catalogued yet') + '</div><div class="arrow">↓</div>'
     body += f'<div class="node"><b>Supplier</b> {util.esc(supplier["name"]) if supplier else "unassigned"}' + (f' · {util.esc(supplier["country"])}' if supplier else '') + '</div><div class="arrow">↓</div>'
     body += f'<div class="node"><b>Installation</b> {util.esc(installation["name"]) if installation else "unassigned"}' + (f' · {util.esc(installation["production_route"] or "route not documented")}' if installation else '') + '</div><div class="arrow">↓</div>'
+    emissions = c.execute("SELECT * FROM emissions_records WHERE tenant_id=? AND import_line_id=? ORDER BY id DESC LIMIT 1", (tid, line['id'])).fetchone()
     if emissions:
-        e0 = emissions[0]
-        m = c.execute('SELECT * FROM methodologies WHERE id=?', (e0['methodology_id'],)).fetchone()
-        body += (f'<div class="node"><b>Embedded emissions</b> direct {util.esc(e0["direct_intensity"] or "—")} / indirect '
-                 f'{util.esc(e0["indirect_intensity"] or "—")} tCO2e/t · methodology {util.esc(m["name"] if m else "not set")} · '
-                 f'{pill_for_status(e0["status"])}</div><div class="arrow">↓</div>')
+        body += f'<div class="node"><b>Emissions record</b> {util.esc(emissions["specific_embedded_emissions"])} tCO2e/t · status {util.esc(emissions["status"])} · source {util.esc(emissions["source_type"])}</div><div class="arrow">↓</div>'
     else:
-        body += '<div class="node"><b>Embedded emissions</b> <span class="pill bad">no installation-level record yet</span></div><div class="arrow">↓</div>'
-    if facts:
-        f0 = facts[0]
-        body += (f'<div class="node"><b>Source document</b> {util.esc(f0["filename"])} ({util.esc(f0["doc_type"])})</div><div class="arrow">↓</div>'
-                 f'<div class="node"><b>Extracted fact</b> {util.esc(FIELD_LABELS.get(f0["field"], f0["field"]))} = {util.esc(f0["value"])} '
-                 f'@ {util.esc(f0["location"])} — “{util.esc(f0["source_excerpt"])}”</div><div class="arrow">↓</div>'
-                 f'<div class="node"><b>Validation</b> {pill_for_status(f0["status"])}' +
-                 (f' by user #{f0["verified_by"]} at {util.esc(f0["verified_at"])}' if f0['verified_by'] else ' — awaiting reviewer') + '</div><div class="arrow">↓</div>')
-    else:
-        body += '<div class="node"><b>Source document / extracted fact</b> <span class="pill bad">no documents linked to this line yet</span></div><div class="arrow">↓</div>'
-    if calcs:
-        r = json.loads(calcs[0]['result_json'])
-        body += (f'<div class="node"><b>Calculation run</b> #{calcs[0]["id"]} · gross {util.esc(r.get("gross_embedded_emissions_tco2e"))} tCO2e · '
-                 f'{pill_for_status(r.get("status"))}</div><div class="arrow">↓</div>')
-    else:
-        body += '<div class="node"><b>Calculation run</b> <span class="pill warn">not yet run</span></div><div class="arrow">↓</div>'
-    body += '<div class="node"><b>Declaration package</b> included when the case declaration is generated.</div>'
-    body += '</div></div>'
+        body += '<div class="node bad"><b>Emissions record</b> Missing. Actual emissions or an approved legal default are required before calculation.</div><div class="arrow">↓</div>'
+    body += '<div class="node"><b>Evidence facts</b> Candidate facts remain unverified until human review. Documents do not silently become verified data.</div></div></div>'
+    body += '<div class="card section"><h2>Evidence facts · human review</h2><table><tr><th>Fact</th><th>Value</th><th>Status</th><th>Source</th></tr>'
+    for fact in facts:
+        body += f'<tr><td>{util.esc(fact["fact_key"])}</td><td>{util.esc(fact["fact_value"])}</td><td>{pill_for_status(fact["status"])}</td><td>{util.esc(fact["source_excerpt"] or "No excerpt")}</td></tr>'
+    if not facts:
+        body += '<tr><td colspan="4">No candidate facts extracted for this line.</td></tr>'
+    body += '</table></div>'
+    body += '<div class="card section"><h2>Current exceptions</h2><table><tr><th>Title</th><th>Severity</th><th>Status</th><th>Detail</th></tr>'
+    for ex in exceptions:
+        body += f'<tr><td>{util.esc(ex["title"])}</td><td>{pill_for_status(ex["severity"])}</td><td>{pill_for_status(ex["status"])}</td><td>{util.esc(ex["detail"])}</td></tr>'
+    if not exceptions:
+        body += '<tr><td colspan="4">No open case exceptions.</td></tr>'
+    body += '</table></div>'
+    return layout(actor, 'Import line', body, 'cases')
 
-    if readiness:
-        body += f'''<div class="card section"><h2>Installation verification readiness</h2>
-<div class="kpi">{readiness["score"]}%</div>{pill_for_status(readiness["status"])}<ul class="checklist section">'''
-        for label, ok, reason in readiness['checklist']:
-            body += f'<li><span class="tick {"yes" if ok else "no"}">{"✓" if ok else "✗"}</span><div><b>{util.esc(label)}</b><div class="muted">{util.esc(reason)}</div></div></li>'
-        flabel, fok, freason = readiness['future_item']
-        body += f'<li><span class="tick {"yes" if fok else "no"}">{"✓" if fok else "○"}</span><div><b>{util.esc(flabel)}</b> <span class="pill info">not yet applicable</span><div class="muted">{util.esc(freason)}</div></div></li>'
-        body += '</ul></div>'
-
-    if exceptions:
-        body += '<div class="card section"><h2>Open exceptions on this line</h2>'
-        for e in exceptions:
-            body += f'<div class="dangerbox"><b>{util.esc(e["title"])}</b> {pill_for_status(e["severity"])} {pill_for_status(e["status"])}<div class="muted small">{util.esc(e["detail"])}</div></div>'
-        body += '</div>'
-
-    body += f'''<div class="card section"><h2>Run calculation for this line</h2>
-<p class="muted small">Resolves intensity from validated installation data first, then the regulatory default value, then a manual override you supply below.</p>
-<form method="post" action="/line/{line["id"]}/calculate"><input type="hidden" name="csrf" value="{util.esc(csrf)}"><div class="formgrid3">
-<div class="field"><label>Quantity override (t, optional)</label><input name="quantity" placeholder="{util.esc(line['quantity'])}"></div>
-<div class="field"><label>Manual intensity override (tCO2e/t, optional)</label><input name="specific_embedded_emissions" placeholder="0"></div>
-<div class="field"><label>Free allocation adjustment (tCO2e)</label><input name="free_allocation_adjustment" value="0"></div>
-<div class="field"><label>Carbon price already paid (€)</label><input name="carbon_price_credit_eur" value="0"></div>
-<div class="field"><label>Certificate price override (€/tCO2e)</label><input name="certificate_price_eur" placeholder="latest published price"></div></div>
-<button class="btn">Run calculation</button></form>'''
-    if calcs:
-        r = json.loads(calcs[0]['result_json'])
-        body += f'''<div class="section successbox"><b>Latest run · {util.esc(calcs[0]["created"])}</b>
-<div class="kv section"><div>Gross embedded</div><div><b>{util.esc(r.get("gross_embedded_emissions_tco2e"))} tCO2e</b></div>
-<div>Net after free allocation</div><div>{util.esc(r.get("net_after_free_allocation_tco2e"))} tCO2e</div>
-<div>Indicative certificate equiv.</div><div>{util.esc(r.get("indicative_certificate_equivalent"))}</div>
-<div>Indicative exposure</div><div><b>€{util.esc(r.get("certificate_exposure_eur") or "0")}</b></div>
-<div>Default-value cost delta</div><div>€{util.esc(r.get("default_value_cost_delta_eur") or "0")}</div>
-<div>Certificate price used</div><div>€{util.esc(r.get("certificate_price_eur_per_tco2e") or "0")}/tCO2e</div>
-<div>Rule set</div><div>{util.esc(json.loads(calcs[0]["input_snapshot"]).get("rule_set",{}).get("version",""))}</div>
-<div>Source</div><div>{util.esc(r.get("source"))}</div>
-<div>Uses default value</div><div>{"Yes — see note" if r.get("uses_default_value") else "No"}</div>
-<div>Status</div><div>{pill_for_status(r.get("status"))}</div></div>
-<div class="muted small section">{util.esc(r.get("note", ""))}</div></div>'''
-    body += '</div>'
-    return layout(actor, f'Import line #{line["id"]}', body, 'cases')
-
-
-# ---------------------------------------------------------------------------
-# Suppliers
-# ---------------------------------------------------------------------------
 
 def suppliers_list(c, actor, csrf):
     tid = actor['tenant_id']
