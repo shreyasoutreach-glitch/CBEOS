@@ -33,7 +33,7 @@ Independently challenge the exact CBEOS release candidate identified by commit S
 ## Current network-source artifact (10 October 2026)
 
 - Acquisition workflow: https://github.com/shreyasoutreach-glitch/CBEOS/actions/runs/37979394337
-- Verified unreviewed source artifact: https://github.com/shreyasoutreach-glitch/CBEOS/actions/runs/37979394337/artifacts/11641070061
+- Verified unreviewed source artifact: https://github.com/shreyasoutreach-glitch/CBEOS/actions/runs/37979394337/artifacts/11641145249
 - Artifact SHA-256 recorded by GitHub: b5ac905c33c19bf5968e0e33ef97946ef0038d7256d1632e361c96e5f5661862. Verify the latest run's artifact digest independently; do not assume digests remain identical across acquisition timestamps.
 - The artifact contains five official EUR-Lex HTML pages, parsed text, an acquisition manifest with raw-file hashes, and table-extraction JSONL rows. All are explicitly unreviewed/not approved.
 - Latest unreviewed extraction counts: defaults consolidated 13,633 rows; defaults base 13,646; correction act 13,521; benchmarks 654; emissions methodology 846. These are raw HTML table rows, not canonical legal-record counts. They are discovery signals only. Validate nested tables, country/CN/route identities, annex labels, unit semantics, effective dates, and corrected rows.
