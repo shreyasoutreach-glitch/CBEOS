@@ -123,42 +123,45 @@ def dashboard(c, actor):
     cases = c.execute('SELECT * FROM cases WHERE tenant_id=? ORDER BY updated DESC', (tid,)).fetchall()
     for case in cases:
         supplier_ops.escalate_overdue(c, tid, case['id'])
-    total_lines = c.execute('SELECT COUNT(*) n FROM import_lines WHERE tenant_id=?', (tid,)).fetchone()['n']
-    blocked_lines = c.execute("SELECT COUNT(*) n FROM import_lines WHERE tenant_id=? AND status='blocked'", (tid,)).fetchone()['n']
-    ready_lines = c.execute("SELECT COUNT(*) n FROM import_lines WHERE tenant_id=? AND status IN ('ready','calculated','approved')", (tid,)).fetchone()['n']
-    open_exceptions = c.execute("SELECT COUNT(*) n FROM exceptions WHERE tenant_id=? AND status NOT IN ('RESOLVED','ACCEPTED_WITH_RISK','WAIVED')", (tid,)).fetchone()['n']
-    high_exceptions = c.execute("SELECT COUNT(*) n FROM exceptions WHERE tenant_id=? AND status NOT IN ('RESOLVED','ACCEPTED_WITH_RISK','WAIVED') AND severity='high'", (tid,)).fetchone()['n']
-    overdue_requests = c.execute("SELECT COUNT(*) n FROM supplier_requests WHERE tenant_id=? AND status='OVERDUE'", (tid,)).fetchone()['n']
-    suppliers_n = c.execute('SELECT COUNT(*) n FROM suppliers WHERE tenant_id=?', (tid,)).fetchone()['n']
-    installations_n = c.execute('SELECT COUNT(*) n FROM installations WHERE tenant_id=?', (tid,)).fetchone()['n']
-    docs_n = c.execute('SELECT COUNT(*) n FROM documents WHERE tenant_id=?', (tid,)).fetchone()['n']
+    count = lambda q, args=(tid,): c.execute(q, args).fetchone()['n']
+    total_lines = count('SELECT COUNT(*) n FROM import_lines WHERE tenant_id=?')
+    blocked_lines = count("SELECT COUNT(*) n FROM import_lines WHERE tenant_id=? AND status='blocked'")
+    ready_lines = count("SELECT COUNT(*) n FROM import_lines WHERE tenant_id=? AND status IN ('ready','calculated','approved')")
+    open_exceptions = count("SELECT COUNT(*) n FROM exceptions WHERE tenant_id=? AND status NOT IN ('RESOLVED','ACCEPTED_WITH_RISK','WAIVED')")
+    high_exceptions = count("SELECT COUNT(*) n FROM exceptions WHERE tenant_id=? AND status NOT IN ('RESOLVED','ACCEPTED_WITH_RISK','WAIVED') AND severity='high'")
+    overdue_requests = count("SELECT COUNT(*) n FROM supplier_requests WHERE tenant_id=? AND status='OVERDUE'")
+    suppliers_n = count('SELECT COUNT(*) n FROM suppliers WHERE tenant_id=?')
+    installations_n = count('SELECT COUNT(*) n FROM installations WHERE tenant_id=?')
+    docs_n = count('SELECT COUNT(*) n FROM documents WHERE tenant_id=?')
     calc_rows = c.execute("SELECT result_json FROM calculation_runs WHERE tenant_id=? AND run_type='import_line' AND id IN (SELECT MAX(id) FROM calculation_runs WHERE tenant_id=? GROUP BY import_line_id)", (tid, tid)).fetchall()
-    exposure = sum((util.num(json.loads(r['result_json']).get('indicative_certificate_equivalent') or 0) * util.num(json.loads(r['result_json']).get('certificate_price_eur_per_tco2e') or 0)) for r in calc_rows)
+    exposure = sum(util.num(json.loads(r['result_json']).get('indicative_certificate_equivalent') or 0) * util.num(json.loads(r['result_json']).get('certificate_price_eur_per_tco2e') or 0) for r in calc_rows)
     rs = engine.latest_rule_set(c)
     latest_price = engine.latest_certificate_price(c, rs['id']) if rs else None
-    body = f"""<div class=\"top\"><div><div class=\"eyebrow\">Control tower</div><div class=\"title\">Evidence → exception → financial consequence</div>
-<div class=\"sub\">CBAM Evidence OS is not another calculator. It controls provenance, reconciliation, verifier readiness, and the commercial cost of uncertainty.</div></div>
-<div class=\"actions\"><a class=\"btn\" href=\"/case/new\">+ New case</a></div></div>
-<div class=\"grid5\"><div class=\"card\"><div class=\"label\">Import lines</div><div class=\"kpi\">{total_lines}</div></div>
-<div class=\"card\"><div class=\"label\">Blocked lines</div><div class=\"kpi\" style=\"color:var(--red)\">{blocked_lines}</div></div>
-<div class=\"card\"><div class=\"label\">Ready / calculated</div><div class=\"kpi\" style=\"color:var(--mint)\">{ready_lines}</div></div>
-<div class=\"card\"><div class=\"label\">Open exceptions</div><div class=\"kpi\" style=\"color:{'var(--red)' if high_exceptions else 'var(--amber)'}\">{open_exceptions}</div></div>
-<div class=\"card\"><div class=\"label\">Overdue supplier requests</div><div class=\"kpi\" style=\"color:var(--amber)\">{overdue_requests}</div></div></div>
-<div class=\"grid3\"><div class=\"card\"><div class=\"label\">Suppliers</div><div class=\"kpi\">{suppliers_n}</div></div><div class=\"card\"><div class=\"label\">Installations</div><div class=\"kpi\">{installations_n}</div></div><div class=\"card\"><div class=\"label\">Source documents</div><div class=\"kpi\">{docs_n}</div></div></div>
-<div class=\"card section\"><h2>Commercial exposure control</h2><p class=\"muted small\">Latest published CBAM certificate price: <b>€{util.esc(latest_price['price_eur'] if latest_price else '—')}/tCO2e</b>. Exposure is scenario-only and uses the exact price stored with each calculation.</p><div class=\"kpi\">{util.money(exposure)}</div></div>\"\"\"
-    updates = c.execute(\"SELECT * FROM regulatory_updates WHERE status='ACTIVE' ORDER BY announced_date DESC LIMIT 4\").fetchall()
+    price = latest_price['price_eur'] if latest_price else '—'
+    body = f"""<div class="top"><div><div class="eyebrow">Control tower</div><div class="title">Evidence → exception → financial consequence</div>
+<div class="sub">CBAM Evidence OS controls provenance, reconciliation, verifier readiness, and the commercial cost of uncertainty.</div></div><div class="actions"><a class="btn" href="/case/new">+ New case</a></div></div>
+<div class="grid5"><div class="card"><div class="label">Import lines</div><div class="kpi">{total_lines}</div></div>
+<div class="card"><div class="label">Blocked lines</div><div class="kpi" style="color:var(--red)">{blocked_lines}</div></div>
+<div class="card"><div class="label">Ready / calculated</div><div class="kpi" style="color:var(--mint)">{ready_lines}</div></div>
+<div class="card"><div class="label">Open exceptions</div><div class="kpi" style="color:{'var(--red)' if high_exceptions else 'var(--amber)'}">{open_exceptions}</div></div>
+<div class="card"><div class="label">Overdue supplier requests</div><div class="kpi" style="color:var(--amber)">{overdue_requests}</div></div></div>
+<div class="grid3"><div class="card"><div class="label">Suppliers</div><div class="kpi">{suppliers_n}</div></div><div class="card"><div class="label">Installations</div><div class="kpi">{installations_n}</div></div><div class="card"><div class="label">Source documents</div><div class="kpi">{docs_n}</div></div></div>
+<div class="card section"><h2>Commercial exposure control</h2><p class="muted small">Latest stored CBAM certificate price: <b>€{util.esc(price)}/tCO2e</b>. Exposure is scenario-only.</p><div class="kpi">{util.money(exposure)}</div></div>"""
+    updates = c.execute("SELECT * FROM regulatory_updates WHERE status='ACTIVE' ORDER BY announced_date DESC LIMIT 4").fetchall()
     body += '<div class="card section"><h2>Regulatory changes that affect the product</h2>'
+    for u in updates:
         body += f'<div class="warnbox small"><b>{util.esc(u["title"])}</b><br>{util.esc(u["impact"])} <span class="muted">Product: {util.esc(u["product_implication"])}</span></div>'
-    body += '<div class="card section"><h2>Case portfolio</h2><table><tr><th>Case</th><th>Period</th><th>Readiness</th><th>Blockers</th><th></th></tr>'
-    body += '<div class="card section"><h2>Case portfolio</h2><table><tr><th>Case</th><th>Period</th><th>Readiness</th><th>Blockers</th><th></th></tr>'
-        sc, rd = engine.readiness(c, tid, x['id'])
-        cls = 'good' if rd['ready'] else ('warn' if sc >= 60 else 'bad')
-        body += f'<tr><td><b>{util.esc(x["case_name"])}</b><div class="muted small">{util.esc(x["company"])} · {util.esc(x["sector"] or "sector not set")}</div></td><td>{util.esc(x["period"])}</td><td><span class="pill {cls}">{sc}%</span></td><td class="small">{util.esc(" · ".join(rd["blockers"][:3]) or "No current blockers")}</td><td><a class="btn secondary" href="/case/{x["id"]}">Open</a></td></tr>'
+    body += '</div><div class="card section"><h2>Case portfolio</h2><table><tr><th>Case</th><th>Period</th><th>Readiness</th><th>Blockers</th><th></th></tr>'
+    for item in cases:
+        score, readiness = engine.readiness(c, tid, item['id'])
+        css = 'good' if readiness['ready'] else ('warn' if score >= 60 else 'bad')
+        blockers = ' · '.join(readiness['blockers'][:3]) or 'No current blockers'
+        body += f'<tr><td><b>{util.esc(item["case_name"])}</b><div class="muted small">{util.esc(item["company"])} · {util.esc(item["sector"] or "sector not set")}</div></td><td>{util.esc(item["period"])}</td><td><span class="pill {css}">{score}%</span></td><td class="small">{util.esc(blockers)}</td><td><a class="btn secondary" href="/case/{item["id"]}">Open</a></td></tr>'
     body += '</table></div>'
-    top_exceptions = c.execute(\"SELECT * FROM exceptions WHERE tenant_id=? AND status NOT IN ('RESOLVED','ACCEPTED_WITH_RISK','WAIVED') ORDER BY CASE severity WHEN 'high' THEN 0 WHEN 'medium' THEN 1 ELSE 2 END,id DESC LIMIT 8\", (tid,)).fetchall()
+    top = c.execute("SELECT * FROM exceptions WHERE tenant_id=? AND status NOT IN ('RESOLVED','ACCEPTED_WITH_RISK','WAIVED') ORDER BY CASE severity WHEN 'high' THEN 0 WHEN 'medium' THEN 1 ELSE 2 END,id DESC LIMIT 8", (tid,)).fetchall()
     body += '<div class="card section"><h2>Highest-priority exceptions</h2><table><tr><th>Title</th><th>Severity</th><th>Status</th><th>Owner</th><th></th></tr>'
-    for e in top_exceptions:
-        body += f'<tr><td><b>{util.esc(e["title"])}</b><div class="muted small">{util.esc(e["detail"])[:110]}</div></td><td>{pill_for_status(e["severity"])}</td><td>{pill_for_status(e["status"])}</td><td>{util.esc(e["owner"])}</td><td><a class="btn secondary small" href="/case/{e["case_id"]}">Open case</a></td></tr>'
+    for item in top:
+        body += f'<tr><td><b>{util.esc(item["title"])}</b><div class="muted small">{util.esc((item["detail"] or "")[:110])}</div></td><td>{pill_for_status(item["severity"])}</td><td>{pill_for_status(item["status"])}</td><td>{util.esc(item["owner"])}</td><td><a class="btn secondary small" href="/case/{item["case_id"]}">Open case</a></td></tr>'
     body += '</table></div>'
     return layout(actor, 'Overview', body, 'overview')
 
@@ -167,89 +170,67 @@ def agents_home(c, actor):
     tid = actor['tenant_id']
     cases = c.execute('SELECT * FROM cases WHERE tenant_id=? ORDER BY updated DESC', (tid,)).fetchall()
     body = '''<div class="top"><div><div class="eyebrow">CBEOS orchestration layer</div><div class="title">Agent terminal</div>
-<div class="sub">One coordinated run. Specialist agents exchange structured hand-offs, cite source pages, challenge evidence quality and return a prioritized work queue. No agent can verify evidence or approve a declaration.</div></div></div>
-<div class="notice"><b>Data boundary:</b> the workflow is read-only with respect to evidence, exceptions and calculations. Optional model commentary is sent to the configured LLM provider only when credentials are explicitly configured and a user launches a run. Model prose is advisory, never authoritative.</div>
+<div class="sub">One coordinated run. Specialist agents exchange structured hand-offs and return a prioritized work queue. No agent can verify evidence or approve a declaration.</div></div></div>
+<div class="notice"><b>Data boundary:</b> the workflow is read-only with respect to evidence, exceptions and calculations. Optional model commentary requires explicit credentials and a user-launched run. Model prose is advisory, never authoritative.</div>
 <div class="card section"><h2>Select a case</h2><table><tr><th>Case</th><th>Period</th><th>Sector</th><th>Latest agent run</th><th></th></tr>'''
     for case in cases:
         latest = c.execute('SELECT id,status,finished_at FROM agent_runs WHERE tenant_id=? AND case_id=? ORDER BY id DESC LIMIT 1', (tid, case['id'])).fetchone()
-        run_label = (f"#{latest['id']} · {latest['status']} · {latest['finished_at'] or 'in progress'}" if latest else 'Not run yet')
-        body += f'<tr><td><b>{util.esc(case["case_name"])}</b><div class="muted small">{util.esc(case["company"])}</div></td><td>{util.esc(case["period"])}</td><td>{util.esc(case["sector"] or "not set")}</td><td>{util.esc(run_label)}</td><td><a class="btn secondary" href="/case/{case["id"]}/agents">Open terminal</a></td></tr>'
+        label = (f"#{latest['id']} · {latest['status']} · {latest['finished_at'] or 'in progress'}" if latest else 'Not run yet')
+        body += f'<tr><td><b>{util.esc(case["case_name"])}</b><div class="muted small">{util.esc(case["company"])}</div></td><td>{util.esc(case["period"])}</td><td>{util.esc(case["sector"] or "not set")}</td><td>{util.esc(label)}</td><td><a class="btn secondary" href="/case/{case["id"]}/agents">Open terminal</a></td></tr>'
     if not cases:
         body += '<tr><td colspan="5">No cases yet. Create a case first, then return here to start the workflow.</td></tr>'
-    body += '</table></div>'
-    body += '<div class="card section"><h2>Specialist roster</h2><div class="grid3">'
-    roster = [('Intake & Scope','Builds the operational baseline without promoting extracted facts.'),('Evidence Quality','Finds missing requirements, empty extractions and review work.'),('Supplier Operations','Surfaces open and overdue requests without sending messages.'),('Reconciliation','Ranks open conflicts and exceptions without auto-closing them.'),('Regulatory Research','Retrieves relevant source pages with page number and SHA-256.'),('Calculation Integrity','Flags non-official defaults, missing legal sources and scenario-only outputs.'),('Commercial Exposure','Separates recorded exception impacts from indicative scenario estimates.'),('Verifier Readiness','Combines blockers into a transparent readiness verdict.'),('Declaration Package QA','Checks package hash and snapshot freshness without generating or approving it.')]
+    body += '</table></div><div class="card section"><h2>Specialist roster</h2><div class="grid3">'
+    roster = [('Intake & Scope','Builds the operational baseline without promoting extracted facts.'),('Evidence Quality','Finds missing requirements, empty extractions and review work.'),('Supplier Operations','Surfaces open and overdue requests without sending messages.'),('Reconciliation','Ranks open conflicts and exceptions without auto-closing them.'),('Regulatory Research','Retrieves source pages with page number and SHA-256.'),('Calculation Integrity','Flags non-official defaults and scenario-only outputs.'),('Commercial Exposure','Separates recorded impacts from indicative estimates.'),('Verifier Readiness','Combines blockers into a transparent readiness verdict.'),('Declaration Package QA','Checks package hash and snapshot freshness.')]
     for name, desc in roster:
-        body += f'<div class="card"><h3>{util.esc(name)} minal(c, actor, case, csrf, run_id=None):
+        body += f'<div class="card"><h3>{util.esc(name)} Agent</h3><p class="muted small">{util.esc(desc)}</p></div>'
+    body += '</div></div>'
+    return layout(actor, 'Agent terminal', body, 'agents')
+
+
+def agent_case_terminal(c, actor, case, csrf, run_id=None):
     tid, cid = actor['tenant_id'], case['id']
     run, messages = agents.load_run(c, tid, cid, run_id)
     model_on = agents.llm_configured()
     mode = 'Configured LLM commentary + deterministic policy agents' if model_on else 'Deterministic policy agents + local source retrieval'
-    data_boundary = ('A configured model may receive case metadata, counts, exception summaries/details, prior hand-offs and selected regulatory excerpts. Raw uploaded documents are not sent by this workflow.' if model_on else 'No model API credentials are configured, so no case data is sent to an external model.')
+    boundary = ('A configured model may receive case metadata, counts, exception summaries/details, prior hand-offs and selected regulatory excerpts. Raw uploaded documents are not sent.' if model_on else 'No model API credentials are configured, so no case data is sent to an external model.')
     body = f"""<div class="top"><div><div class="eyebrow">Agent terminal · case #{cid}</div><div class="title">{util.esc(case['case_name'])}</div>
 <div class="sub">{util.esc(case['company'])} · {util.esc(case['period'])} · {util.esc(case['sector'] or 'sector not set')}</div></div>
 <div class="actions"><a class="btn secondary" href="/case/{cid}">Back to case</a><a class="btn secondary" href="/agents">All cases</a></div></div>
-<div class="notice"><b>Operating mode:</b> {util.esc(mode)}. {util.esc(data_boundary)} Calculations, approvals and evidence verification remain human-controlled.</div>
-<div class="card section"><h2>Launch coordinated workflow</h2><p class="muted">The orchestrator sends structured hand-offs through Intake → Evidence Quality → Reconciliation → Regulatory Research → Calculation Integrity → Verifier Readiness, then returns a prioritized action queue.</p>
+<div class="notice"><b>Operating mode:</b> {util.esc(mode)}. {util.esc(boundary)} Calculations, approvals and evidence verification remain human-controlled.</div>
+<div class="card section"><h2>Launch coordinated workflow</h2><p class="muted">The orchestrator sends structured hand-offs through Intake → Evidence Quality → Reconciliation → Regulatory Research → Calculation Integrity → Verifier Readiness.</p>
 <form method="post" action="/case/{cid}/agents/run"><input type="hidden" name="csrf" value="{util.esc(csrf)}"><button class="btn">Run workflow now</button></form></div>"""
     if run:
         summary = run.get('summary', {})
         readiness = summary.get('readiness', {}) if isinstance(summary, dict) else {}
         verdict = readiness.get('verdict', run['status'])
-        verdict_class = 'good' if verdict == 'READY_FOR_HUMAN_REVIEW' else 'bad'
-        body += f'''<div class="grid"><div class="card"><div class="label">Latest run</div><div class="kpi">#{run['id']}</div><span class="pill">{util.esc(run['status'])}</span></div>
-<div class="card"><div class="label">Readiness verdict</div><div class="kpi">{util.esc(readiness.get('readiness_score','—'))}<span class="muted">/100</span></div><span class="pill {verdict_class}">{util.esc(verdict)}</span></div>
-<div class="card"><div class="label">Source documents indexed</div><div class="kpi">{util.esc(summary.get('source_corpus',{}).get('documents','—'))}</div><div class="muted small">Local knowledge corpus</div></div>
-<div class="card"><div class="label">Model commentary</div><div class="kpi" style="font-size:18px">{util.esc(summary.get('llm_commentary_status','not available'))}</div><div class="muted small">Advisory only</div></div></div>'''
+        cls = 'good' if verdict == 'READY_FOR_HUMAN_REVIEW' else 'bad'
+        body += f"""<div class="grid"><div class="card"><div class="label">Latest run</div><div class="kpi">#{run['id']}</div><span class="pill">{util.esc(run['status'])}</span></div>
+<div class="card"><div class="label">Readiness verdict</div><div class="kpi">{util.esc(readiness.get('readiness_score','—'))}/100</div><span class="pill {cls}">{util.esc(verdict)}</span></div>
+<div class="card"><div class="label">Source documents indexed</div><div class="kpi">{util.esc(summary.get('source_corpus',{}).get('documents','—'))}</div></div>
+<div class="card"><div class="label">Model commentary</div><div class="kpi">{util.esc(summary.get('llm_commentary_status','not available'))}</div><div class="muted small">Advisory only</div></div></div>"""
         blockers = readiness.get('blockers', []) + readiness.get('calculation_blockers', [])
         if blockers:
             body += '<div class="dangerbox"><b>Current blockers</b><ul>' + ''.join(f'<li>{util.esc(x)}</li>' for x in blockers) + '</ul></div>'
-        actions = summary.get('next_actions', [])
         body += '<div class="card section"><h2>Prioritized next actions</h2><table><tr><th>Priority</th><th>Action</th></tr>'
-        for item in actions:
+        for item in summary.get('next_actions', []):
             body += f'<tr><td>{pill_for_status(item.get("priority","P2"))}</td><td>{util.esc(item.get("action",""))}</td></tr>'
         body += '</table></div>'
-        body += '<div class="card section"><h2>Regulatory source trail</h2><p class="muted small">Page-level lexical retrieval from the supplied corpus. Citations identify the exact PDF and page; the SHA-256 fingerprint ties each result to the indexed source file. Retrieval is not legal validation.</p><table><tr><th>Source / page</th><th>Relevance</th><th>Excerpt</th></tr>'
-        for src in summary.get('agents',{}).get('regulatory',{}).get('sources',[]):
-            body += f'<tr><td><b>{util.esc(src.get("filename"))}</b><div class="muted small">Page {util.esc(src.get("page"))}</div><div class="source">SHA-256 {util.esc(src.get("sha256"))}</div></td><td>{util.esc(src.get("score"))}</td><td>{util.esc(src.get("excerpt"))}</td></tr>'
+        regulatory = summary.get('agents', {}).get('regulatory', {})
+        body += '<div class="card section"><h2>Regulatory source trail</h2><p class="muted small">Page-level retrieval is not legal validation.</p><table><tr><th>Source / page</th><th>Relevance</th><th>Excerpt</th></tr>'
+        for item in regulatory.get('sources', []):
+            body += f'<tr><td>{util.esc(item.get("filename"))}<div class="muted small">Page {util.esc(item.get("page"))}</div><div class="source">SHA-256 {util.esc(item.get("sha256"))}</div></td><td>{util.esc(item.get("score"))}</td><td>{util.esc(item.get("excerpt"))}</td></tr>'
         body += '</table></div>'
-        model_recommendations = summary.get('model_recommendations',[])
-        if model_recommendations:
-            body += '<div class="warnbox"><b>Advisory model suggestions only</b><ul>' + ''.join(f'<li><b>{util.esc(item.get("agent"))}:</b> {util.esc(item.get("action"))}</li>' for item in model_recommendations[:18]) + '</ul><p class="muted small">These suggestions are unverified and do not trigger actions. A human must assess and execute them.</p></div>'
-        exception_actions = summary.get('agents',{}).get('reconciliation',{}).get('exception_actions',[])
-        body += '<div class="card section"><h2>Exception work queue · highest priority</h2><table><tr><th>Exception</th><th>Priority</th><th>Impact</th><th>Recommended next action</th></tr>'
-        for item in exception_actions:
-            body += f'<tr><td><b>#{util.esc(item.get("exception_id"))} {util.esc(item.get("title"))}</b><div class="muted small">{util.esc(item.get("severity"))}</div></td><td>{pill_for_status(item.get("priority","P2"))}</td><td>{util.esc(item.get("financial_impact_eur","Not quantified"))}</td><td>{util.esc(item.get("recommended_action",""))}</td></tr>'
-        if not exception_actions:
-            body += '<tr><td colspan="4">No open exceptions were found in the current case snapshot.</td></tr>'
-        body += '</table></div>'
-        supplier_ops = summary.get('agents',{}).get('supplier_ops',{})
-        body += f'<div class="card section"><h2>Supplier operations · {util.esc(supplier_ops.get("open_request_count",0))} open / {util.esc(supplier_ops.get("overdue_request_count",0))} overdue</h2><p class="muted small">Recommended follow-up only. No email was sent and no supplier request status was changed.</p><table><tr><th>Supplier / request</th><th>Status</th><th>Deadline</th><th>Escalation</th></tr>'
-        for item in supplier_ops.get('requests',[])[:8]:
-            status_label = 'OVERDUE' if item.get('is_overdue') else item.get('status','UNKNOWN')
-            body += f'<tr><td><b>{util.esc(item.get("supplier_name") or "Unknown supplier")}</b><div class="muted small">{util.esc(item.get("title") or item.get("requirement_name") or "Evidence request")}</div></td><td>{pill_for_status(status_label)}</td><td>{util.esc(item.get("deadline") or "No deadline")}</td><td>{util.esc(item.get("escalation_level",0))}</td></tr>'
-        if not supplier_ops.get('requests'):
-            body += '<tr><td colspan="4">No open supplier requests in this case.</td></tr>'
-        body += '</table></div>'
-        exposure = summary.get('agents',{}).get('commercial_exposure',{})
-        body += f'<div class="card section"><h2>Commercial exposure · indicative only</h2><div class="grid3"><div><div class="label">Recorded open exception impacts</div><div class="kpi">{util.esc(exposure.get("open_exception_impacts_count",0))}</div></div><div><div class="label">Latest per-line scenario exposure</div><div class="kpi">{util.esc(exposure.get("latest_line_scenario_exposure_sum_eur") or "Not available")}</div></div><div><div class="label">Status</div><div class="kpi" style="font-size:17px">{util.esc(exposure.get("scenario_status","NOT_AVAILABLE"))}</div></div></div><p class="muted small">Recorded exception impacts are listed individually and not summed because issues may overlap. Scenario exposure is not verified CBAM liability and must not be used as a declaration figure.</p></div>'
-        package_qa = summary.get('agents',{}).get('declaration_qa',{})
-        package_class = 'good' if package_qa.get('status') == 'CURRENT_DRAFT' else ('bad' if package_qa.get('status') in {'HASH_INVALID','STALE'} else 'warn')
-        body += f'<div class="card section"><h2>Declaration package QA</h2><span class="pill {package_class}">{util.esc(package_qa.get("status","NOT_CHECKED"))}</span><p>{util.esc(package_qa.get("action","No package status available."))}</p><div class="source">Package SHA-256: {util.esc(package_qa.get("stored_sha256") or "Not available")}</div></div>'
-        reg_summary = summary.get('agents',{}).get('regulatory',{})
-        if not reg_summary.get('binding_legal_act_available',False):
-            body += '<div class="dangerbox"><b>Regulatory source gap:</b> the local corpus contains guidance and administrative material but no identified binding CBAM legal-act text. Add and verify the current binding law before legal interpretation or reliance on liability figures.</div>'
-        chain_ok, chain_at = agents.verify_message_chain(c, tid, cid, run['id'])
-        chain_status = ('successbox' if chain_ok else 'dangerbox')
-        chain_text = ('Conversation hash chain verified. Each hand-off is linked to the previous message.' if chain_ok else f'Conversation integrity check failed at sequence {chain_at}. Do not rely on this transcript.')
-        body += f'<div class="card section"><h2>Agent-to-agent conversation</h2><div class="{chain_status}">{util.esc(chain_text)}</div><p class="muted small">Every hand-off is persisted in sequence with structured payloads and a per-run SHA-256 chain. Open an entry to inspect the machine-readable message payload.</p><div class="trace">'
+        ok, at = agents.verify_message_chain(c, tid, cid, run['id'])
+        integrity = 'successbox' if ok else 'dangerbox'
+        note = 'Conversation hash chain verified.' if ok else f'Conversation integrity failed at sequence {at}.'
+        body += f'<div class="card section"><h2>Agent-to-agent conversation</h2><div class="{integrity}">{util.esc(note)}</div><div class="trace">'
         for msg in messages:
-            payload = util.esc(msg.get('payload_json','{}'))
-            body += f'<div class="node"><div class="eyebrow">{util.esc(msg.get("sequence_no"))}. {util.esc(msg.get("from_agent"))} → {util.esc(msg.get("to_agent"))} · {util.esc(msg.get("message_type"))}</div><p>{util.esc(msg.get("body"))}</p><details><summary class="muted small">Inspect structured hand-off payload</summary><div class="source">{payload}</div></details></div><div class="arrow">↓</div>'
+            body += f'<div class="node"><div class="eyebrow">{util.esc(msg.get("sequence_no"))}. {util.esc(msg.get("from_agent"))} → {util.esc(msg.get("to_agent"))} · {util.esc(msg.get("message_type"))}</div><p>{util.esc(msg.get("body"))}</p><details><summary class="muted small">Inspect structured hand-off payload</summary><div class="source">{util.esc(msg.get("payload_json","{}"))}</div></details></div>'
         body += '</div></div>'
     else:
-        body += '<div class="card section"><h2>What the run will produce</h2><ul class="checklist"><li><span class="tick yes">✓</span>Baseline counts and candidate-fact review workload</li><li><span class="tick yes">✓</span>Missing evidence and open-exception priority queue</li><li><span class="tick yes">✓</span>Regulatory references with source file, page and hash</li><li><span class="tick yes">✓</span>Calculation integrity warnings and readiness verdict</li><li><span class="tick no">!</span>No automatic fact verification, exception closure, declaration approval or filing</li></ul></div>'
+        body += '<div class="card section"><h2>What the run produces</h2><ul class="checklist"><li>Evidence gaps and open-exception priorities</li><li>Regulatory references with source file, page and hash</li><li>Calculation integrity warnings and readiness verdict</li><li>No automatic verification, exception closure or filing</li></ul></div>'
     return layout(actor, 'Agent terminal', body, 'agents')
+
 
 def case_list(c, actor):
     tid = actor['tenant_id']
