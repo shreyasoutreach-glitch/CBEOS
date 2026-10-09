@@ -4,8 +4,8 @@
   "last_local_test_run": "2026-10-09",
   "local_test_suite": "PASS_9_SUITES_INCLUDING_DB_RECOVERY_AND_HEALTH_PROBES",
   "local_compileall": "PASS",
-  "github_publication": "PARTIAL_SOURCE_TREE_PUBLISHED_TO_MAIN_CI_NOW_RUNNING",
-  "remote_ci": "FAIL_REGRESSION_SUITES_IN_PROGRESS_REPAIR",
+  "github_publication": "PARTIAL_SOURCE_TREE_PUBLISHED_TO_MAIN",
+  "remote_ci": "PASS_ALL_9_REGRESSION_SUITES_AND_COMPILEALL_ON_2026-10-10",
   "remote_dependency_audit": "PASS_NO_KNOWN_VULNERABILITIES_IN_PUBLISHED_REQUIREMENTS",
   "sprint_1": "BLOCKED_BINDING_ANNEX_RECONCILIATION",
   "sprint_2": "CALCULATION_RULES_HARDENED_LOCAL_TESTS_PASS_NOT_SIGNED_OFF",
@@ -27,9 +27,9 @@
   "antigravity_verification_complete": false,
   "client_outreach_authorized": false,
   "notes": [
-    "Local workspace tests previously passed, but the public repository is being reconstructed and independently verified through GitHub Actions.",
-    "Latest remote compileall passed on commit a25b58a9; remote regression suites exposed issues in view rendering, staging parser expectations and test isolation. Fixes are being pushed and must pass a fresh CI run.",
-    "The repository is publicly published but the complete source tree and source index are not yet confirmed complete. Do not deploy until CI is green and release gates are reviewed.",
+    "GitHub Actions run 37978918315 on commit 91f030842693ba8cbe76e51c3c16424314c48a10 passed: pip-audit reported no known vulnerabilities, compileall passed, and all 9 regression suites passed.",
+    "The next documentation-only commit has its own CI run in progress; verify the latest run before calling the branch green at HEAD.",
+    "Public source publication is partial: the runtime app, regression suites, and governance/staging tools are published, but the source workbook inputs and full canonical legal dataset are not included or promoted.",
     "Only 7 curated binding-source spot checks are confirmed against 14,627 staged records. 14,620 rows remain pending canonical reconciliation. Pending means not reconciled, not necessarily incorrect.",
     "No regulatory dataset has been promoted; no production deployment, off-host recovery drill, or independent Antigravity verification has occurred."
   ],
