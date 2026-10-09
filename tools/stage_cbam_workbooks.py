@@ -33,7 +33,7 @@ def value_state(value):
  if value is None or not str(value).strip():return ('blank_review',None)
  s=str(value).strip()
  if s in {'-','—','–'}:return ('fallback_required',None)
- if re.search(r'\b(see above|same as|group total|subtotal|included below)\b',s,re.I):return ('group_parent',None)
+ if re.search(r'\b(see below|see above|same as|group total|subtotal|included below)\b',s,re.I):return ('group_parent',None)
  d=parse_decimal(value)
  if d is not None:return ('numeric',d)
  return ('text_review',None)
