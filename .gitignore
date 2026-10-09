@@ -1,0 +1,30 @@
+# Local runtime state and client data
+/data/
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3
+uploads/
+/data/uploads/
+
+# Credentials and provider configuration
+.env
+.env.*
+!.env.example
+
+# Python artifacts
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Local logs and scratch outputs
+*.log
+*.tmp
+
+# Legal-data staging inputs/outputs are retained separately; do not accidentally publish raw exports
+staging/output/*
+staging/official_sources/*.html
+staging/official_sources/*.txt
+!staging/official_sources/acquisition_manifest.json
