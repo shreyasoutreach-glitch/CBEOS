@@ -35,7 +35,16 @@ Independently challenge the exact CBEOS release candidate identified by commit S
 - Acquisition workflow: https://github.com/shreyasoutreach-glitch/CBEOS/actions/runs/37979394337
 - Verified unreviewed source artifact: https://github.com/shreyasoutreach-glitch/CBEOS/actions/runs/37979394337/artifacts/11641145249
 - Artifact SHA-256 recorded by GitHub: b5ac905c33c19bf5968e0e33ef97946ef0038d7256d1632e361c96e5f5661862. Verify the latest run's artifact digest independently; do not assume digests remain identical across acquisition timestamps.
-- The artifact contains five official EUR-Lex HTML pages, parsed text, an acquisition manifest with raw-file hashes, and table-extraction JSONL rows. All are explicitly unreviewed/not approved.
+- The artifact contains five official EUR-Lex HTML pages, parsed text, an acquisition manifest, and table-extraction JSONL rows. All are explicitly unreviewed/not approved. Source-file hashes from that artifact:
+
+| Source file | SHA-256 |
+|---|---|
+| defaults_consolidated.html | bb7a38fd364249470b80535790cacbe28e0de30a466939e33dbadc001c398247 |
+| defaults_base.html | 0dffca2443356946350983d5f7616b032780127185dffd1c6b7e91a882addb7d |
+| defaults_correction.html | 754b3456caec30b8f6fae146805f9d7ddaeed2bdcf262e1d094043c4f8230d92 |
+| benchmarks.html | 423a322e4def4b4bbcfd2a3c472e07417e32870dd76aed68008e4d7d42930cbf |
+| emissions_methodology.html | 24c167d1088309d68d4fbec011c9bc5f2ee4d7246036943a8eaeab9bf99390bf |
+
 - Latest unreviewed extraction counts: defaults consolidated 13,633 rows; defaults base 13,646; correction act 13,521; benchmarks 654; emissions methodology 846. These are raw HTML table rows, not canonical legal-record counts. They are discovery signals only. Validate nested tables, country/CN/route identities, annex labels, unit semantics, effective dates, and corrected rows.
 - Artifact retention is seven days. Download it and preserve the archive digest and extracted file hashes in the independent report.
 
