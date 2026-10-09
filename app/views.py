@@ -186,12 +186,12 @@ def agents_home(c, actor):
     model_on = agents.llm_configured()
     mode = 'Configured LLM commentary + deterministic policy agents' if model_on else 'Deterministic policy agents + local source retrieval'
     data_boundary = ('A configured model may receive case metadata, counts, exception summaries/details, prior hand-offs and selected regulatory excerpts. Raw uploaded documents are not sent by this workflow.' if model_on else 'No model API credentials are configured, so no case data is sent to an external model.')
-    body = f'''<div class="top"><div><div class="eyebrow">Agent terminal · case #{cid}</div><div class="title">{util.esc(case['case_name'])}</div>
+    body = f"""<div class="top"><div><div class="eyebrow">Agent terminal · case #{cid}</div><div class="title">{util.esc(case['case_name'])}</div>
 <div class="sub">{util.esc(case['company'])} · {util.esc(case['period'])} · {util.esc(case['sector'] or 'sector not set')}</div></div>
 <div class="actions"><a class="btn secondary" href="/case/{cid}">Back to case</a><a class="btn secondary" href="/agents">All cases</a></div></div>
 <div class="notice"><b>Operating mode:</b> {util.esc(mode)}. {util.esc(data_boundary)} Calculations, approvals and evidence verification remain human-controlled.</div>
 <div class="card section"><h2>Launch coordinated workflow</h2><p class="muted">The orchestrator sends structured hand-offs through Intake → Evidence Quality → Reconciliation → Regulatory Research → Calculation Integrity → Verifier Readiness, then returns a prioritized action queue.</p>
-<form method="post" action="/case/{cid}/agents/run"><input type="hidden" name="csrf" value="{util.esc(csrf)}"><button class="btn">Run workflow now</button></form></div>'''
+<form method="post" action="/case/{cid}/agents/run"><input type="hidden" name="csrf" value="{util.esc(csrf)}"><button class="btn">Run workflow now</button></form></div>"""
     if run:
         summary = run.get('summary', {})
         readiness = summary.get('readiness', {}) if isinstance(summary, dict) else {}
