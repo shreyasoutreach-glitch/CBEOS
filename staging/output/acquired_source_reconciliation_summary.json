@@ -1,0 +1,19 @@
+{
+  "release":"CBEOS-source-reconciliation-v1",
+  "status":"MACHINE_RECONCILIATION_COMPLETE_SOURCE_REVIEW_OPEN",
+  "promotion_performed":false,
+  "source_archive_sha256":"b5ac905c33c19bf5968e0e33ef97946ef0038d7256d1632e361c96e5f5661862",
+  "source_archive_hash_verified":true,
+  "annex_i_staged_rows":12540,
+  "annex_i_status_counts":{"SOURCE_MATCH_EXTRACTED_UNREVIEWED":12540},
+  "annex_iv_staged_rows":283,
+  "annex_iv_status_counts":{"ANNEX_IV_SOURCE_MATCH_EXTRACTED_UNREVIEWED":283},
+  "benchmark_staged_rows":1804,
+  "benchmark_status_counts":{"BENCHMARK_SOURCE_MATCH_EXTRACTED_UNREVIEWED":1804},
+  "total_staged_rows":14627,
+  "total_extracted_source_matches":14627,
+  "mismatch_rows":0,
+  "ambiguous_rows":0,
+  "promotion_status":"NOT_APPROVED_NO_PROMOTION",
+  "limitations":["The extracted HTML is not yet legally approved or independently signed off.","Matching extracted cells does not prove completeness of legal interpretation or effective-date handling.","No live filing or production promotion is authorized."]
+}
