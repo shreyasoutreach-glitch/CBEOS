@@ -280,4 +280,70 @@ def case_form(actor, csrf):
 <option value="iron_steel">Iron &amp; steel</option><option value="aluminium">Aluminium</option>
 <option value="fertilisers">Fertilisers</option><option value="cement">Cement</option>
 <option value="hydrogen">Hydrogen</option><option value="electricity">Electricity</option>
-<option value="other">Other / mixed</option></select>
+<option value="other">Other / mixed</option></select></div></div>
+<div class="field"><label>Internal notes</label><textarea name="notes" placeholder="Context, owner, unusual facts, review scope..."></textarea></div>
+<input type="hidden" name="csrf" value="{util.esc(csrf)}"><button class="btn">Create case</button></form></div>'''
+    return layout(actor, 'New case', body, 'cases')
+
+
+def case_detail(c, actor, case, csrf):
+    tid, cid = actor['tenant_id'], case['id']
+    sc, rd = engine.readiness(c, tid, cid)
+    cls = 'good' if rd['ready'] else ('warn' if sc >= 60 else 'bad')
+    imports = c.execute('SELECT * FROM imports WHERE tenant_id=? AND case_id=? ORDER BY id DESC', (tid, cid)).fetchall()
+    lines = c.execute('SELECT * FROM import_lines WHERE tenant_id=? AND case_id=? ORDER BY id DESC', (tid, cid)).fetchall()
+    docs = c.execute('SELECT * FROM documents WHERE tenant_id=? AND case_id=? ORDER BY id DESC', (tid, cid)).fetchall()
+    facts = c.execute('SELECT f.*,d.filename FROM facts f JOIN documents d ON d.id=f.document_id '
+                        'WHERE f.tenant_id=? AND f.case_id=? ORDER BY f.id DESC LIMIT 60', (tid, cid)).fetchall()
+    ev = c.execute('SELECT * FROM evidence WHERE tenant_id=? AND case_id=? ORDER BY id', (tid, cid)).fetchall()
+    req = c.execute('SELECT * FROM evidence_requirements WHERE tenant_id=? AND case_id=? ORDER BY scope_type,id', (tid, cid)).fetchall()
+    exc = c.execute("SELECT * FROM exceptions WHERE tenant_id=? AND case_id=? AND status NOT IN ('RESOLVED','ACCEPTED_WITH_RISK','WAIVED') "
+                      "ORDER BY CASE severity WHEN 'high' THEN 0 WHEN 'medium' THEN 1 ELSE 2 END,id", (tid, cid)).fetchall()
+    suppliers = c.execute('SELECT * FROM suppliers WHERE tenant_id=? ORDER BY name', (tid,)).fetchall()
+    installations = c.execute('SELECT * FROM installations WHERE tenant_id=? ORDER BY name', (tid,)).fetchall()
+
+    body = f'''<div class="top"><div><div class="eyebrow">Case · {util.esc(case["period"])}</div><div class="title">{util.esc(case["case_name"])}</div>
+<div class="sub">{util.esc(case["company"])} · {util.esc(case["sector"] or "sector not set")} · status {util.esc(case["status"])}</div></div>
+<div class="actions"><a class="btn" href="/case/{cid}/agents">Run agent workflow</a><a class="btn secondary" href="/case/{cid}/pack">Evidence pack (JSON)</a>
+<a class="btn secondary" href="/case/{cid}/declaration">Declaration package</a>
+{'<form method="post" action="/approve" style="display:inline"><input type="hidden" name="case_id" value="' + str(cid) + '"><input type="hidden" name="csrf" value="' + util.esc(csrf) + '"><button class="btn" ' + ('' if rd['ready'] else 'disabled') + '>Approve case</button></form>'}
+</div></div>
+<div class="grid"><div class="card"><div class="label">Readiness</div><div class="kpi">{sc}%</div>
+<span class="pill {cls}">{'READY FOR HUMAN APPROVAL' if rd['ready'] else 'BLOCKED'}</span></div>
+<div class="card"><div class="label">Import lines</div><div class="kpi">{rd["import_lines_total"]}</div>
+<div class="muted small">{rd["import_lines_blocked"]} blocked</div></div>
+<div class="card"><div class="label">Documents</div><div class="kpi">{rd["docs"]}</div></div>
+<div class="card"><div class="label">Open exceptions</div><div class="kpi">{rd["open_issues"]}</div></div></div>'''
+    if rd['blockers']:
+        body += '<div class="dangerbox"><b>Approval blockers</b><ul>' + ''.join(f'<li>{util.esc(x)}</li>' for x in rd['blockers']) + '</ul></div>'
+    else:
+        body += '<div class="successbox"><b>Operational blockers cleared.</b> The evidence workflow is complete enough for human consequential review. This is not a legal compliance certification.</div>'
+
+    body += '<div class="two section"><div><div class="card"><h2>1 · Imports &amp; import lines</h2>'
+    body += f'''<form method="post" action="/case/{cid}/import/create"><input type="hidden" name="csrf" value="{util.esc(csrf)}">
+<div class="formgrid3"><div class="field"><label>Import reference</label><input name="reference" placeholder="e.g. MRN or shipment ref" required></div>
+<div class="field"><label>Mode</label><select name="mode"><option value="sea">Sea</option><option value="road">Road</option><option value="rail">Rail</option><option value="air">Air</option></select></div>
+<div class="field"><label>Arrival date</label><input name="arrival_date" type="date"></div></div>
+<button class="btn secondary small">+ Add import</button></form>'''
+    body += '<table class="section"><tr><th>Reference</th><th>Mode</th><th>Arrival</th><th>Lines</th></tr>'
+    for im in imports:
+        n = c.execute('SELECT COUNT(*) n FROM import_lines WHERE import_id=?', (im['id'],)).fetchone()['n']
+        body += f'<tr><td><b>{util.esc(im["reference"])}</b></td><td>{util.esc(im["mode"])}</td><td>{util.esc(im["arrival_date"])}</td><td>{n}</td></tr>'
+    body += '</table>'
+
+    supplier_opts = ''.join(f'<option value="{s["id"]}">{util.esc(s["name"])}</option>' for s in suppliers)
+    installation_opts = ''.join(f'<option value="{i["id"]}">{util.esc(i["name"])}</option>' for i in installations)
+    import_opts = ''.join(f'<option value="{i["id"]}">{util.esc(i["reference"])}</option>' for i in imports)
+    body += f'''<h3 class="section">Add import line</h3><form method="post" action="/line/create"><input type="hidden" name="case_id" value="{cid}">
+<input type="hidden" name="csrf" value="{util.esc(csrf)}"><div class="formgrid3">
+<div class="field"><label>Import</label><select name="import_id"><option value="">(unassigned)</option>{import_opts}</select></div>
+<div class="field"><label>CN code</label><input name="cn_code" placeholder="e.g. 72081000" required></div>
+<div class="field"><label>Quantity (t)</label><input name="quantity" placeholder="e.g. 24.500"></div>
+<div class="field"><label>Origin country</label><input name="origin_country"></div>
+<div class="field"><label>Supplier</label><select name="supplier_id"><option value="">(unassigned)</option>{supplier_opts}</select></div>
+<div class="field"><label>Installation</label><select name="installation_id"><option value="">(unassigned)</option>{installation_opts}</select></div>
+<div class="field"><label>Invoice ref</label><input name="invoice_ref"></div></div>
+<button class="btn secondary small">+ Add import line</button></form>'''
+    body += '<table class="section"><tr><th>Line</th><th>CN</th><th>Qty</th><th>Supplier</th><th>Installation</th><th>Status</th><th></th></tr>'
+    for l in lines:
+        sname = c.execute('SELECT name FROM suppliers WHERE id=?', (l['supplier_id'],)).fet
