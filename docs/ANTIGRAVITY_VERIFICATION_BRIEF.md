@@ -28,6 +28,17 @@ Independently challenge the exact CBEOS release candidate identified by commit S
 - Fixes made, changed files, added regression tests and rerun results.
 - Remaining blockers and explicit go/no-go recommendation.
 
+
+
+## Current network-source artifact (10 October 2026)
+
+- Acquisition workflow: https://github.com/shreyasoutreach-glitch/CBEOS/actions/runs/37979394337
+- Latest unreviewed source artifact: https://github.com/shreyasoutreach-glitch/CBEOS/actions/runs/37979394337/artifacts/11641070061
+- Artifact SHA-256 recorded by GitHub for the earlier identical-size artifact: 81238194daa0df176de8d40b69cc8ad0ee64f04bad513d0c3407b0c2ac0621d6. Verify the latest run's artifact digest independently; do not assume digests remain identical across acquisition timestamps.
+- The artifact contains five official EUR-Lex HTML pages, parsed text, an acquisition manifest with raw-file hashes, and table-extraction JSONL rows. All are explicitly unreviewed/not approved.
+- Extraction row counts are discovery signals only. In particular, a low table-row count or high row count does not establish annex completeness or correct structure. Validate nested tables, country/CN/route identities, annex labels, unit semantics, effective dates, and corrected rows.
+- Artifact retention is seven days. Download it and preserve the archive digest and extracted file hashes in the independent report.
+
 ## Independence boundary
 
 A green software test run does not prove legal correctness. Antigravity verification is not a legal opinion, regulator approval, accredited verifier opinion or independent penetration test unless the relevant qualified scope is separately commissioned and documented.
