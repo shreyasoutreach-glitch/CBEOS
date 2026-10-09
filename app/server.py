@@ -545,4 +545,123 @@ class Handler(BaseHTTPRequestHandler):
         self.cookies = security.parse_cookies(self.headers.get('Cookie', ''))
         try:
             path = urlparse(self.path).path
-      
+            # Public liveness probe deliberately reveals no build, version, host,
+            # or timestamp details. Readiness verifies the database dependency but
+            # returns only a generic failure body to avoid leaking internals.
+            if path in ('/health', '/healthz'):
+                return self.send(json.dumps({'ok': True}), ctype='application/json')
+            if path == '/readyz':
+                probe = None
+                try:
+                    probe = dbm.db()
+                    probe.execute('SELECT 1').fetchone()
+                    required = {'tenants', 'users', 'cases', 'documents', 'exceptions'}
+                    present = {row['name'] for row in probe.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()}
+                    if not required.issubset(present):
+                        raise RuntimeError('Required schema is missing')
+                    return self.send(json.dumps({'ready': True}), ctype='application/json')
+                except Exception:
+                    import logging
+                    logging.getLogger('cbeos.health').exception('Readiness probe failed')
+                    return self.send(json.dumps({'ready': False}), 503, ctype='application/json')
+                finally:
+                    if probe is not None:
+                        probe.close()
+            if path == '/login':
+                return self.send(views.login_page())
+            if path == '/logout':
+                sid = self.cookies.get(security.SESSION_COOKIE).value if self.cookies.get(security.SESSION_COOKIE) else ''
+                c = dbm.db()
+                c.execute('DELETE FROM sessions WHERE id=?', (sid,))
+                c.commit()
+                c.close()
+                return self.redirect('/login')
+
+            a = require(self)
+            if not a:
+                return
+            c = dbm.db()
+            try:
+                if path == '/':
+                    return self.send(views.dashboard(c, a))
+                if path == '/cases':
+                    return self.send(views.case_list(c, a))
+                if path == '/agents':
+                    return self.send(views.agents_home(c, a))
+                agent_match = re.match(r'^/case/(\d+)/agents$', path)
+                if agent_match:
+                    cid = int(agent_match.group(1))
+                    case = c.execute('SELECT * FROM cases WHERE tenant_id=? AND id=?', (a['tenant_id'], cid)).fetchone()
+                    if not case:
+                        return self.send('Not found', 404)
+                    return self.send(views.agent_case_terminal(c, a, case, self.session_csrf()))
+                if path == '/case/new':
+                    return self.send(views.case_form(a, self.session_csrf()))
+                if path == '/suppliers':
+                    return self.send(views.suppliers_list(c, a, self.session_csrf()))
+                if path == '/installations':
+                    return self.send(views.installations_list(c, a))
+                if path == '/exceptions':
+                    return self.send(views.exceptions_queue(c, a, self.session_csrf()))
+                if path == '/verification':
+                    return self.send(views.verification_overview(c, a))
+                if path == '/audit':
+                    return self.send(views.audit_view(c, a))
+                if path == '/sources':
+                    return self.send(views.sources_view(c, a))
+                if path == '/settings':
+                    if not require_perm(a, 'manage_users'):
+                        return self.send('Forbidden', 403)
+                    return self.send(views.settings_view(c, a, self.session_csrf()))
+
+                m = re.match(r'^/document/(\d+)/download$', path)
+                if m:
+                    return do_download(self, int(m.group(1)))
+
+                m = re.match(r'^/supplier/(\d+)$', path)
+                if m:
+                    s = c.execute('SELECT * FROM suppliers WHERE id=? AND tenant_id=?', (int(m.group(1)), a['tenant_id'])).fetchone()
+                    if not s:
+                        return self.send('Not found', 404)
+                    return self.send(views.supplier_detail(c, a, s, self.session_csrf()))
+
+                m = re.match(r'^/installation/(\d+)$', path)
+                if m:
+                    i = c.execute('SELECT * FROM installations WHERE id=? AND tenant_id=?', (int(m.group(1)), a['tenant_id'])).fetchone()
+                    if not i:
+                        return self.send('Not found', 404)
+                    return self.send(views.installation_detail(c, a, i, self.session_csrf()))
+
+                m = re.match(r'^/line/(\d+)$', path)
+                if m:
+                    line = c.execute('SELECT * FROM import_lines WHERE id=? AND tenant_id=?', (int(m.group(1)), a['tenant_id'])).fetchone()
+                    if not line:
+                        return self.send('Not found', 404)
+                    return self.send(views.import_line_detail(c, a, line, self.session_csrf()))
+
+                m = re.match(r'^/case/(\d+)(/pack|/declaration)?$', path)
+                if m:
+                    cid = int(m.group(1))
+                    case = c.execute('SELECT * FROM cases WHERE tenant_id=? AND id=?', (a['tenant_id'], cid)).fetchone()
+                    if not case:
+                        return self.send('Not found', 404)
+                    if m.group(2) == '/pack':
+                        pack = engine.case_pack(c, a['tenant_id'], cid)
+                        return self.send(json.dumps(pack, indent=2, default=str), ctype='application/json')
+                    if m.group(2) == '/declaration':
+                        return self.send(views.declaration_view(c, a, case, self.session_csrf()))
+                    engine.sync_requirements(c, a['tenant_id'], cid)
+                    engine.run_reconciliation(c, a['tenant_id'], cid, a['user_id'])
+                    c.commit()
+                    return self.send(views.case_detail(c, a, case, self.session_csrf()))
+                return self.send('Not found', 404)
+            finally:
+                c.close()
+        except Exception:
+            import logging
+            logging.getLogger('cbeos.http').exception('Unhandled GET handler error')
+            return self.send('Internal server error.', 500)
+
+    def do_POST(self):
+        self.cookies = security.parse_cookies(self.headers.get('Cookie', ''))
+        path = urlparse(self.path).
