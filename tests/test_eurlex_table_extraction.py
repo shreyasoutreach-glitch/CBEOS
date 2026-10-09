@@ -11,6 +11,11 @@ class EurLexTableExtractionTests(unittest.TestCase):
   self.assertEqual(parser.table_no,1);self.assertEqual(len(parser.rows),2)
   self.assertEqual(parser.rows[1]['table_no'],1);self.assertEqual(parser.rows[1]['row_no'],2)
   self.assertEqual(parser.rows[1]['cells'],['Exampleland','7208 10 00'])
+ def test_nested_tables_are_preserved_as_separate_locators(self):
+  html='<table><tr><td>outer<table><tr><td>nested code</td></tr></table></td></tr></table>'
+  parser=TableExtractor();parser.feed(html)
+  self.assertEqual(parser.table_no,2)
+  self.assertTrue(any(r['table_no']==2 and 'nested code' in r['cells'][0] for r in parser.rows))
  def test_extraction_manifest_never_approves_or_promotes(self):
   with tempfile.TemporaryDirectory() as td:
    root=Path(td);src=root/'input';out=root/'out';src.mkdir()
