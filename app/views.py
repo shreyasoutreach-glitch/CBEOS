@@ -413,4 +413,63 @@ def case_detail(c, actor, case, csrf):
 <option value="installation">Installation</option><option value="import_line">Import line</option></select></div></div>
 <div class="field"><label>Scope id (supplier/installation/import-line id, blank for case)</label><input name="scope_id" placeholder="e.g. 3"></div>
 <div class="field"><label>Source / reference</label><input name="source"></div><div class="field"><label>Note</label><textarea name="note"></textarea></div>
-<button class="btn">Add evidence</button></form><table class="section"><tr><th>Evidence
+<button class="btn">Add evidence</button></form><table class="section"><tr><th>Evidence</th><th>Status</th><th>Scope</th><th>Source</th></tr>'''
+    for e in ev:
+        body += (f'<tr><td><b>{util.esc(e["name"])}</b><div class="muted small">{util.esc(e["category"])}</div></td>'
+                 f'<td><span class="pill {"good" if e["status"] in ("complete", "verified") else "warn"}">{util.esc(e["status"])}</span></td>'
+                 f'<td class="small">{util.esc(e["scope_type"])} #{e["scope_id"] or ""}</td><td>{util.esc(e["source"])}<div class="muted small">{util.esc(e["note"])}</div></td></tr>')
+    body += '</table></div>'
+
+    calc = c.execute('SELECT * FROM calculation_runs WHERE tenant_id=? AND case_id=? ORDER BY id DESC LIMIT 5', (tid, cid)).fetchall()
+    body += f'''<div class="card section"><h2>7 · Case-level scenario workbench</h2>
+<p class="muted small">Ad hoc "what if" exploration, not tied to a specific import line. For a real calculation backed by evidence, use the
+Trace page for an individual import line.</p><form method="post" action="/calculate"><input type="hidden" name="case_id" value="{cid}">
+<input type="hidden" name="csrf" value="{util.esc(csrf)}"><div class="formgrid3">
+<div class="field"><label>Quantity (t)</label><input name="quantity" value="0"></div>
+<div class="field"><label>Specific embedded emissions (tCO2e/t)</label><input name="specific_embedded_emissions" value="0"></div>
+<div class="field"><label>Free allocation adjustment (tCO2e)</label><input name="free_allocation_adjustment" value="0"></div>
+<div class="field"><label>Carbon price already paid (€)</label><input name="carbon_price_credit_eur" value="0"></div>
+<div class="field"><label>Certificate price (€/tCO2e)</label><input name="certificate_price_eur" value="75.28"></div></div>
+<button class="btn">Run scenario</button></form>'''
+    if calc:
+        r = json.loads(calc[0]['result_json'])
+        body += (f'<div class="section successbox"><b>Latest run · {util.esc(calc[0]["created"])}</b><br>'
+                 f'Gross embedded: <b>{util.esc(r.get("gross_embedded_emissions_tco2e"))} tCO2e</b><br>'
+                 f'Net after free allocation input: <b>{util.esc(r.get("net_after_free_allocation_tco2e"))} tCO2e</b><br>'
+                 f'Indicative certificate equivalent: <b>{util.esc(r.get("indicative_certificate_equivalent") if r.get("indicative_certificate_equivalent") is not None else "not computable")}</b>'
+                 f'<div class="muted small">{util.esc(r.get("note", ""))}</div></div>')
+    body += '</div>'
+    return layout(actor, case['case_name'], body, 'cases')
+
+
+# ---------------------------------------------------------------------------
+# Import line detail = the visible evidence graph (§19)
+# ---------------------------------------------------------------------------
+
+def import_line_detail(c, actor, line, csrf):
+    tid = actor['tenant_id']
+    case = c.execute('SELECT * FROM cases WHERE id=?', (line['case_id'],)).fetchone()
+    supplier = c.execute('SELECT * FROM suppliers WHERE id=?', (line['supplier_id'],)).fetchone() if line['supplier_id'] else None
+    installation = c.execute('SELECT * FROM installations WHERE id=?', (line['installation_id'],)).fetchone() if line['installation_id'] else None
+    product = c.execute('SELECT * FROM products WHERE tenant_id=? AND cn_code=?', (tid, line['cn_code'])).fetchone()
+    facts = c.execute('SELECT f.*,d.filename,d.doc_type FROM facts f JOIN documents d ON d.id=f.document_id '
+                        'WHERE f.tenant_id=? AND (f.import_line_id=? OR f.installation_id=?) ORDER BY f.id DESC',
+                        (tid, line['id'], line['installation_id'] or -1)).fetchall()
+    emissions = c.execute("SELECT * FROM emissions_data WHERE tenant_id=? AND installation_id=? ORDER BY id DESC",
+                            (tid, line['installation_id'] or -1)).fetchall()
+    calcs = c.execute('SELECT * FROM calculation_runs WHERE tenant_id=? AND import_line_id=? ORDER BY id DESC', (tid, line['id'])).fetchall()
+    exceptions = c.execute("SELECT * FROM exceptions WHERE tenant_id=? AND ((affected_entity_type='import_line' AND affected_entity_id=?) "
+                             "OR (affected_entity_type='installation' AND affected_entity_id=?)) AND status NOT IN "
+                             "('RESOLVED','ACCEPTED_WITH_RISK','WAIVED') ORDER BY id DESC", (tid, line['id'], line['installation_id'] or -1)).fetchall()
+    readiness = engine.verification_readiness(c, tid, line['installation_id']) if line['installation_id'] else None
+    risk_score, risk_reasons = engine.import_line_control_risk(c, tid, line['case_id'], line['id'])
+
+    body = f'''<div class="top"><div><div class="eyebrow">Import line #{line['id']} · evidence graph</div><div class="title">{util.esc(line['description'] or line['cn_code'])}</div>
+<div class="sub">{util.esc(case['case_name'] if case else 'Case missing')} · {util.esc(case['period'] if case else '')} · CN {util.esc(line['cn_code'])}</div></div>
+<div class="actions"><a class="btn secondary" href="/case/{line['case_id']}">Back to case</a></div></div>
+<div class="grid"><div class="card"><div class="label">Control risk score</div><div class="kpi">{risk_score}/100</div><span class="pill {'good' if risk_score >= 80 else ('warn' if risk_score >= 55 else 'bad')}">{'LOW' if risk_score >= 80 else ('MEDIUM' if risk_score >= 55 else 'HIGH')} WORKFLOW RISK</span></div>
+<div class="card"><div class="label">Quantity</div><div class="kpi">{util.esc(line['quantity'] or '—')} t</div></div>
+<div class="card"><div class="label">Evidence facts</div><div class="kpi">{len(facts)}</div><div class="muted small">{sum(1 for f in facts if f['status']=='verified')} human-verified</div></div>
+<div class="card"><div class="label">Open exceptions</div><div class="kpi">{len(exceptions)}</div></div></div>'''
+    if risk_reasons:
+        body += '<div class="warnbox"><b>Risk drivers</b><ul>' + ''.join(f'<li>{util.esc(x)}</li>' for x in risk_reasons) + '</ul></div>'
