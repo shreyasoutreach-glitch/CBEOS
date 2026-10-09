@@ -22,6 +22,18 @@ from decimal import Decimal
 from . import util
 from .db import REQS, FIELD_LABELS
 
+
+def calculate_marked_default_total(base_total, markup_pct):
+    """Apply the legal default markup to the total field at runtime precision."""
+    try:
+        base = Decimal(str(base_total))
+        pct = Decimal(str(markup_pct))
+    except Exception as exc:
+        raise ValueError('Default total and markup must be valid decimals.') from exc
+    if not base.is_finite() or not pct.is_finite() or base < 0 or pct < 0:
+        raise ValueError('Default total and markup must be finite and non-negative.')
+    return (base * (Decimal('1') + pct / Decimal('100'))).quantize(Decimal('0.0001'))
+
 # ---------------------------------------------------------------------------
 # Audit chain (append-only, per-tenant hash chain)
 # ---------------------------------------------------------------------------
@@ -736,7 +748,7 @@ def compute_import_line_calculation(c, tid, uid, cid, line_id, form):
             default_markup_pct = util.num(markup_row['markup_pct'])
             if not default_markup_pct.is_finite() or default_markup_pct < 0:
                 return None, 'Regulatory default-value markup is invalid. Calculation blocked.'
-            default_total_intensity = (default_base_total_intensity * (Decimal('1') + default_markup_pct / Decimal('100'))).quantize(Decimal('0.0001'))
+            default_total_intensity = calculate_marked_default_total(default_base_total_intensity, default_markup_pct)
             m = lookup_methodology(c, 'DEFAULT_VALUE')
             methodology_used = m['id'] if m else None
             source_note = f"Regulatory default value (rule set {rs['code']} v{rs['version']}): {default['markup_note']}"
