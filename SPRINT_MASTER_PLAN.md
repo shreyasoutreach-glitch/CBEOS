@@ -1,43 +1,49 @@
-# CBEOS Sprint Master Plan and Closeout
+# CBEOS Sprint Master Plan
 
-Updated: 10 October 2026 (IST). This is a live engineering record, not a release certificate.
+Updated: 10 October 2026 (IST). This is a live execution record, not a release certificate.
 
-## Release principle
+## North star
 
-A sprint is not “done” because code exists. Each sprint requires its deliverable, regression evidence, operational checks where applicable, and explicit blockers. The public branch is an engineering candidate. The regulatory dataset remains unapproved, and production deployment is not authorized.
+Sell a measurable operational outcome: supplier evidence recovered, conflicts surfaced, blocked import lines made actionable, and a traceable human-review package. The client-facing experience matters more than the volume of internal components. The sandbox must never imply regulatory approval or production readiness that has not been earned.
 
 ## Sprint ledger
 
-| Sprint | Workstream | Current state | Exit gate / remaining work |
+| Sprint | Workstream | Evidence-based state | Remaining exit condition |
 |---|---|---|---|
-| 1 | Legal source acquisition and reconciliation | **Machine row-level reconciliation complete; legal review open** | All 14,627 staged rows match extracted EUR-Lex table cells: Annex I 12,540/12,540; Annex IV 283/283; benchmarks 1,804/1,804. Machine comparison found no mismatch or ambiguity. Qualified review of source completeness, nested-table semantics, effective dates, fallback rules and routes remains mandatory before approving an immutable dataset version. |
-| 2 | Calculation rules and traceability | **Golden arithmetic baseline passes; broader review open** | Six independent arithmetic/selector cases pass, including total-field handling and route-specific benchmarks. Broader liability, precursor, free-allocation and effective-date rules still need review against approved source data. |
-| 3 | Evidence graph and scoped requirements | **Implemented baseline; review open** | Independently review requirement coverage and scope inheritance across case, supplier, installation and import line; test upload-to-fact provenance and human verification boundaries. |
-| 4 | Exception management and audit trail | **Implemented baseline; review open** | Validate state transitions, permissions, immutable history, audit-chain failure behavior and tenant isolation with adversarial cases. |
-| 5 | Application security | **Regression baseline green** | Remote CI dependency audit and security tests pass. Remaining: external security review, production secret/configuration review, shared rate limiting for multiple replicas, and real malware scanning before customer uploads. |
-| 6 | Database operations and recovery | **Tooling/tests present; recovery drill open** | Execute backup/restore and integrity validation on a separate environment; test rollback and document measured recovery steps. Unit tests alone are not an off-host recovery drill. |
-| 7 | Demo UX and regression | **Baseline regression green; usability review open** | Validate full demo journeys with realistic synthetic cases, accessibility/keyboard flow, error states, and product usability review. |
-| 8 | Agent workflow and source retrieval | **Implemented baseline; source corpus incomplete** | Confirm complete source corpus, retrieval citations/page hashes, agent-message chain, bounded model data, prompt-injection behavior and no automatic consequential actions. |
-| 9 | Documentation and release governance | **Core docs published; final freeze open** | Keep README, release status, checklist, source hierarchy and Antigravity brief consistent with latest HEAD; freeze version only after gates pass. |
-| 10 | Deployment and operations | **BLOCKED** | Do not deploy until CI is green at HEAD, legal source gate passes, production secrets and configuration are reviewed, health/readiness and migration plans are checked, and a rollback path is ready. |
-| 11 | Network-enabled closeout and independent verification | **Acquisition and machine reconciliation executed; Antigravity review open** | Official-source archive acquired and hash-verified; all 14,627 staged rows matched extracted source cells; six golden cases pass. Qualified legal/source review and Antigravity verification remain open. Deployment stays gated. |
+| 1 | Official source acquisition | **ACQUIRED / UNREVIEWED** | Preserve source hashes and locators; independently confirm completeness and meaning before any legal promotion. |
+| 2 | Calculation rules and provenance | **ARITHMETIC FIXTURES ONLY** | Verify source-derived values and rules against an approved immutable dataset with independent golden cases. |
+| 3 | Evidence graph and scoped requirements | **IMPLEMENTED BASELINE / REVIEW OPEN** | Adversarially test scope inheritance, document-to-fact provenance and human verification gates. |
+| 4 | Exceptions and audit | **IMPLEMENTED BASELINE / REVIEW OPEN** | Verify transitions, permissions, immutable history, chain failure and tenant isolation. |
+| 5 | Application security | **REMOTE REGRESSION BASELINE GREEN ON PRIOR MAIN HEAD** | Run CI on this branch; review deployment secrets/configuration, shared rate limiting, upload scanning and external security findings. |
+| 6 | Database operations | **TOOLING/UNIT TESTS PRESENT; LIVE RECOVERY NOT PROVEN** | Execute and record a separate-environment backup/restore and rollback drill. |
+| 7 | Product UX | **OUTCOME-FIRST DASHBOARD IMPLEMENTED ON MEGASPRINT BRANCH; CI PENDING** | Run tests and a full seeded synthetic journey, including empty/error states, accessibility and mobile layout. |
+| 8 | Agent workflow | **PARTIAL / REVIEW OPEN** | Verify hand-offs, source citations, bounded inputs, prompt-injection resilience and no automatic consequential actions. |
+| 9 | Release governance | **CORRECTION IN PROGRESS ON MEGASPRINT BRANCH** | Keep every status file aligned with actual evidence; freeze only after release gates pass. |
+| 10 | Sandbox deployment | **NOT AUTHORIZED YET** | Pass branch CI, application/security review, config/secrets checks, health/readiness, recovery/rollback and deployed smoke tests. |
+| 11 | Network/source verification | **ARCHIVE ACQUIRED; FULL ROW-LEVEL RECONCILIATION NOT VERIFIED AS EXECUTED; ANTIGRAVITY OPEN** | Reproduce reconciliation against actual artifact/workbooks, independently review legal/source semantics, then hand exact candidate to Antigravity. |
+| 12 | Client outcomes megasprint | **IN PROGRESS** | Finish outcome-first workflow, honest status records, regression run, end-to-end demo, independent verification, sandbox deployment and a measured pilot package. |
 
-## Current verified evidence
+## Evidence currently available
 
-- GitHub Actions run 37979407230 passed on commit 7980649e9288c57d1990c2f6f106b056d3d162ce: dependency audit, Python compilation, and all ten regression suites, including source-table extraction tests.
-- GitHub Actions run 37979394337 fetched all five official EUR-Lex HTML sources (HTTP 200) and extracted source-located table rows without approval. Artifact: https://github.com/shreyasoutreach-glitch/CBEOS/actions/runs/37979394337/artifacts/11641145249 (SHA-256 b5ac905c33c19bf5968e0e33ef97946ef0038d7256d1632e361c96e5f5661862; expires 16 October 2026).
-- Extraction counts are preliminary only: defaults consolidated 13,633 rows; defaults base 13,646; correction act 13,521; benchmark source 654; emissions methodology 846. These are raw HTML table rows, not canonical legal-record counts. Completeness, annex mapping, route semantics and cell extraction require review.
-- The CI dependency audit reported no known vulnerabilities in the published dependency environment. This is not a security certification.
-- Regression coverage includes unit, HTTP integration, security, regulatory import guard, agent workflow, demo rendering, legal parser/rules, source governance, and database recovery utilities.
-- Workbook-based parser tests are skipped in GitHub because source workbooks are intentionally not committed. They must be run in the controlled local workspace and their evidence retained.
-- Public source publication is partial with respect to the local workspace and source inputs. No source workbook, confidential supplier data, or row-level reconciliation export is included.
-- The legal pipeline now has a full machine comparison of 14,627 staged records against extracted EUR-Lex cells: Annex I 12,540; Annex IV 283; benchmarks 1,804; zero mismatches or ambiguous matches. These are `EXTRACTED_UNREVIEWED` matches, not legal approval.
-- Six independent golden calculation cases pass. The runtime now has a tested helper for total-field markup and rejects invalid/non-finite values. No canonical regulatory dataset has been promoted. No production deployment, off-host recovery drill, independent Antigravity verification, or client outreach is authorized.
+- Main branch's last known green remote CI run: https://github.com/shreyasoutreach-glitch/CBEOS/actions/runs/37981524399 on commit `c5f8a1d7534685db5fe8af07f86d1629681239f3`. It passed dependency audit, compilation and the published regression suites. It does **not** certify changes on this megasprint branch.
+- Official EUR-Lex acquisition/extraction run: https://github.com/shreyasoutreach-glitch/CBEOS/actions/runs/37979394337. The downloaded artifact SHA-256 was reported as `b5ac905c33c19bf5968e0e33ef97946ef0038d7256d1632e361c96e5f5661862`; it remains unreviewed and has a stated expiry of 16 October 2026.
+- The five-source HTML extraction produced preliminary raw table-row counts. These are not canonical legal-record counts and do not prove complete annex coverage.
+- The published reconciliation script exists, but the available evidence does not establish that the full 14,627-row comparison was actually executed against the archived source artifact and original workbooks. Earlier status wording that claimed all rows matched was too strong and must not be repeated as fact.
+- Seven curated binding-source spot checks were previously reported. They do not establish full coverage.
+- No canonical legal dataset has been approved/promoted. No production deployment, independent Antigravity verification or client outreach is complete.
 
-## Closeout order for tonight
+## Megasprint execution order
 
-1. Keep CI green at HEAD after the reconciler, runtime helper, golden cases and documentation changes.
-2. Acquire the archive, verify its hash, and complete row-level machine reconciliation without promoting data.
-3. Run source-independent checks, security/configuration review, and recovery tooling tests.
-4. Publish an accurate release record and verification brief.
-5. Do not bypass legal review or Sprint 10 gates merely to claim all sprints complete. The engineering candidate is tested; legal approval, Antigravity review and production release remain blocked.
+1. Outcome-first dashboard and guided navigation (implemented on branch; CI pending).
+2. Truthful release records and reproducible test status (being corrected on branch).
+3. Run dependency audit, compile and full regression suite at the exact branch HEAD; repair failures and rerun.
+4. Exercise synthetic client journey end to end; verify source trace, supplier requests, exceptions, readiness, exports and audit.
+5. Fix only demonstrable product defects and high-impact usability/security gaps; do not expand legal edge cases merely to make the checklist longer.
+6. Run Antigravity independently against exact SHA and preserve its finding list.
+7. Fix findings and rerun affected tests.
+8. Deploy sandbox only after application/security gates pass; verify deployed login, key flows, health/readiness and rollback.
+9. Prepare a pilot offer with measured operational results, explicit scope, synthetic-data demo, human-review boundary and no unsubstantiated ROI claims.
+
+## Truth labels
+
+Every closeout report must use **PASS**, **FAIL**, **BLOCKED**, or **NOT RUN**. Include exact commit SHA, command, exit code, logs/artifacts, defect and retest evidence. Never infer a pass from the existence of code or a green run on another commit.
