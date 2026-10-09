@@ -1,0 +1,27 @@
+{
+  "suite":"CBEOS independent golden calculation review v1",
+  "status":"PASS",
+  "cases_passed":6,
+  "cases_total":6,
+  "cases":[
+    {"id":"GC-01","check":"runtime default markup","expected":"0.9570","actual":"0.9570","passed":true},
+    {"id":"GC-02","check":"runtime default markup","expected":"0.1680","actual":"0.1680","passed":true},
+    {"id":"GC-03","check":"runtime default markup","expected":"0.4680","actual":"0.4680","passed":true},
+    {"id":"GC-04","check":"use total field, not direct+indirect sum","expected":"2.7876","actual":"2.7876","incorrect_component_sum_result":"2.7977","passed":true},
+    {"id":"GC-05","check":"route-specific benchmark E selection","expected":"0.072","actual":"0.072","route_mismatch_blocked":true,"passed":true},
+    {"id":"GC-06","check":"route-independent benchmark approval guard","blocked_without_approval":true,"value_with_approval":"0.044","passed":true}
+  ],
+  "row_level_reconciliation":{
+    "source_archive_sha256":"b5ac905c33c19bf5968e0e33ef97946ef0038d7256d1632e361c96e5f5661862",
+    "source_archive_hash_verified":true,
+    "annex_i_rows":12540,"annex_i_matches":12540,
+    "annex_iv_rows":283,"annex_iv_matches":283,
+    "benchmark_rows":1804,"benchmark_matches":1804,
+    "total_rows":14627,"mismatch_rows":0,"ambiguous_rows":0,"promotion_performed":false
+  },
+  "review_limits":[
+    "Independent arithmetic/selector checks are not legal counsel sign-off.",
+    "Extracted HTML source remains unreviewed for completeness and legal interpretation.",
+    "No dataset promotion, production deployment or live filing is authorized."
+  ]
+}
