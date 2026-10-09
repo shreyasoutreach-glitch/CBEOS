@@ -4,9 +4,9 @@
   "last_local_test_run": "2026-10-09",
   "local_test_suite": "PASS_9_SUITES_INCLUDING_DB_RECOVERY_AND_HEALTH_PROBES",
   "local_compileall": "PASS",
-  "github_publication": "PARTIAL_SOURCE_SNAPSHOT_NOT_RUNNABLE",
-  "remote_ci": "FAIL_TEST_RUNNER_MISSING",
-  "remote_dependency_audit": "PASS_LIMITED_PUBLISHED_DEPENDENCIES_ONLY",
+  "github_publication": "PARTIAL_SOURCE_TREE_PUBLISHED_TO_MAIN_CI_NOW_RUNNING",
+  "remote_ci": "FAIL_REGRESSION_SUITES_IN_PROGRESS_REPAIR",
+  "remote_dependency_audit": "PASS_NO_KNOWN_VULNERABILITIES_IN_PUBLISHED_REQUIREMENTS",
   "sprint_1": "BLOCKED_BINDING_ANNEX_RECONCILIATION",
   "sprint_2": "CALCULATION_RULES_HARDENED_LOCAL_TESTS_PASS_NOT_SIGNED_OFF",
   "sprint_3": "IMPLEMENTED_BASELINE_REVIEW_REQUIRED",
@@ -27,11 +27,11 @@
   "antigravity_verification_complete": false,
   "client_outreach_authorized": false,
   "notes": [
-    "Local: all 9 test suites passed and Python compilation passed on 2026-10-09.",
-    "Remote GitHub Actions run 37973232939: pip-audit returned 'No known vulnerabilities found' for the limited published dependency set. Compileall returned zero but warned that tools/ and tests/ were missing. Regression run failed because tests/run_all.py was absent.",
-    "The GitHub repository is a partial source snapshot and is not runnable. Do not deploy this branch.",
-    "The direct container network is unavailable and the available shell sandbox has no GitHub authentication. The GitHub connector currently supports per-file text writes but no direct local-directory/archive push action. Do not claim the full local workspace was published.",
+    "Local workspace tests previously passed, but the public repository is being reconstructed and independently verified through GitHub Actions.",
+    "Latest remote compileall passed on commit a25b58a9; remote regression suites exposed issues in view rendering, staging parser expectations and test isolation. Fixes are being pushed and must pass a fresh CI run.",
+    "The repository is publicly published but the complete source tree and source index are not yet confirmed complete. Do not deploy until CI is green and release gates are reviewed.",
     "Only 7 curated binding-source spot checks are confirmed against 14,627 staged records. 14,620 rows remain pending canonical reconciliation. Pending means not reconciled, not necessarily incorrect.",
-    "No regulatory dataset has been promoted; no live deployment, off-host recovery drill, or independent Antigravity verification has occurred."
-  ]
+    "No regulatory dataset has been promoted; no production deployment, off-host recovery drill, or independent Antigravity verification has occurred."
+  ],
+  "github_published": true
 }
