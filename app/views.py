@@ -182,4 +182,51 @@ def agents_home(c, actor):
     body += '<div class="card section"><h2>Specialist roster</h2><div class="grid3">'
     roster = [('Intake & Scope','Builds the operational baseline without promoting extracted facts.'),('Evidence Quality','Finds missing requirements, empty extractions and review work.'),('Supplier Operations','Surfaces open and overdue requests without sending messages.'),('Reconciliation','Ranks open conflicts and exceptions without auto-closing them.'),('Regulatory Research','Retrieves relevant source pages with page number and SHA-256.'),('Calculation Integrity','Flags non-official defaults, missing legal sources and scenario-only outputs.'),('Commercial Exposure','Separates recorded exception impacts from indicative scenario estimates.'),('Verifier Readiness','Combines blockers into a transparent readiness verdict.'),('Declaration Package QA','Checks package hash and snapshot freshness without generating or approving it.')]
     for name, desc in roster:
-        body += f'<div class="card"><h3>{util.esc(name)} 
+        body += f'<div class="card"><h3>{util.esc(name)} minal(c, actor, case, csrf, run_id=None):
+    tid, cid = actor['tenant_id'], case['id']
+    run, messages = agents.load_run(c, tid, cid, run_id)
+    model_on = agents.llm_configured()
+    mode = 'Configured LLM commentary + deterministic policy agents' if model_on else 'Deterministic policy agents + local source retrieval'
+    data_boundary = ('A configured model may receive case metadata, counts, exception summaries/details, prior hand-offs and selected regulatory excerpts. Raw uploaded documents are not sent by this workflow.' if model_on else 'No model API credentials are configured, so no case data is sent to an external model.')
+    body = f'''<div class="top"><div><div class="eyebrow">Agent terminal · case #{cid}</div><div class="title">{util.esc(case['case_name'])}</div>
+<div class="sub">{util.esc(case['company'])} · {util.esc(case['period'])} · {util.esc(case['sector'] or 'sector not set')}</div></div>
+<div class="actions"><a class="btn secondary" href="/case/{cid}">Back to case</a><a class="btn secondary" href="/agents">All cases</a></div></div>
+<div class="notice"><b>Operating mode:</b> {util.esc(mode)}. {util.esc(data_boundary)} Calculations, approvals and evidence verification remain human-controlled.</div>
+<div class="card section"><h2>Launch coordinated workflow</h2><p class="muted">The orchestrator sends structured hand-offs through Intake → Evidence Quality → Reconciliation → Regulatory Research → Calculation Integrity → Verifier Readiness, then returns a prioritized action queue.</p>
+<form method="post" action="/case/{cid}/agents/run"><input type="hidden" name="csrf" value="{util.esc(csrf)}"><button class="btn">Run workflow now</button></form></div>'''
+    if run:
+        summary = run.get('summary', {})
+        readiness = summary.get('readiness', {}) if isinstance(summary, dict) else {}
+        verdict = readiness.get('verdict', run['status'])
+        verdict_class = 'good' if verdict == 'READY_FOR_HUMAN_REVIEW' else 'bad'
+        body += f'''<div class="grid"><div class="card"><div class="label">Latest run</div><div class="kpi">#{run['id']}</div><span class="pill">{util.esc(run['status'])}</span></div>
+<div class="card"><div class="label">Readiness verdict</div><div class="kpi">{util.esc(readiness.get('readiness_score','—'))}<span class="muted">/100</span></div><span class="pill {verdict_class}">{util.esc(verdict)}</span></div>
+<div class="card"><div class="label">Source documents indexed</div><div class="kpi">{util.esc(summary.get('source_corpus',{}).get('documents','—'))}</div><div class="muted small">Local knowledge corpus</div></div>
+<div class="card"><div class="label">Model commentary</div><div class="kpi" style="font-size:18px">{util.esc(summary.get('llm_commentary_status','not available'))}</div><div class="muted small">Advisory only</div></div></div>'''
+        blockers = readiness.get('blockers', []) + readiness.get('calculation_blockers', [])
+        if blockers:
+            body += '<div class="dangerbox"><b>Current blockers</b><ul>' + ''.join(f'<li>{util.esc(x)}</li>' for x in blockers) + '</ul></div>'
+        actions = summary.get('next_actions', [])
+        body += '<div class="card section"><h2>Prioritized next actions</h2><table><tr><th>Priority</th><th>Action</th></tr>'
+        for item in actions:
+            body += f'<tr><td>{pill_for_status(item.get("priority","P2"))}</td><td>{util.esc(item.get("action",""))}</td></tr>'
+        body += '</table></div>'
+        body += '<div class="card section"><h2>Regulatory source trail</h2><p class="muted small">Page-level lexical retrieval from the supplied corpus. Citations identify the exact PDF and page; the SHA-256 fingerprint ties each result to the indexed source file. Retrieval is not legal validation.</p><table><tr><th>Source / page</th><th>Relevance</th><th>Excerpt</th></tr>'
+        for src in summary.get('agents',{}).get('regulatory',{}).get('sources',[]):
+            body += f'<tr><td><b>{util.esc(src.get("filename"))}</b><div class="muted small">Page {util.esc(src.get("page"))}</div><div class="source">SHA-256 {util.esc(src.get("sha256"))}</div></td><td>{util.esc(src.get("score"))}</td><td>{util.esc(src.get("excerpt"))}</td></tr>'
+        body += '</table></div>'
+        model_recommendations = summary.get('model_recommendations',[])
+        if model_recommendations:
+            body += '<div class="warnbox"><b>Advisory model suggestions only</b><ul>' + ''.join(f'<li><b>{util.esc(item.get("agent"))}:</b> {util.esc(item.get("action"))}</li>' for item in model_recommendations[:18]) + '</ul><p class="muted small">These suggestions are unverified and do not trigger actions. A human must assess and execute them.</p></div>'
+        exception_actions = summary.get('agents',{}).get('reconciliation',{}).get('exception_actions',[])
+        body += '<div class="card section"><h2>Exception work queue · highest priority</h2><table><tr><th>Exception</th><th>Priority</th><th>Impact</th><th>Recommended next action</th></tr>'
+        for item in exception_actions:
+            body += f'<tr><td><b>#{util.esc(item.get("exception_id"))} {util.esc(item.get("title"))}</b><div class="muted small">{util.esc(item.get("severity"))}</div></td><td>{pill_for_status(item.get("priority","P2"))}</td><td>{util.esc(item.get("financial_impact_eur","Not quantified"))}</td><td>{util.esc(item.get("recommended_action",""))}</td></tr>'
+        if not exception_actions:
+            body += '<tr><td colspan="4">No open exceptions were found in the current case snapshot.</td></tr>'
+        body += '</table></div>'
+        supplier_ops = summary.get('agents',{}).get('supplier_ops',{})
+        body += f'<div class="card section"><h2>Supplier operations · {util.esc(supplier_ops.get("open_request_count",0))} open / {util.esc(supplier_ops.get("overdue_request_count",0))} overdue</h2><p class="muted small">Recommended follow-up only. No email was sent and no supplier request status was changed.</p><table><tr><th>Supplier / request</th><th>Status</th><th>Deadline</th><th>Escalation</th></tr>'
+        for item in supplier_ops.get('requests',[])[:8]:
+            status_label = 'OVERDUE' if item.get('is_overdue') else item.get('status','UNKNOWN')
+            body += f'<tr><td><b>{util.esc(item.get("supplier_name") or "Unknown supplier")}</b><div class="muted small">{util.esc
