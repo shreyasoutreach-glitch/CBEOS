@@ -625,4 +625,70 @@ lier, csrf):
             actions = (f'<form method="post" action="/supplier_request/{r["id"]}/respond" style="display:inline"><input type="hidden" name="csrf" value="{util.esc(csrf)}">'
                        f'<input type="hidden" name="validated" value="0"><button class="btn secondary small">Mark responded</button></form> '
                        f'<form method="post" action="/supplier_request/{r["id"]}/respond" style="display:inline"><input type="hidden" name="csrf" value="{util.esc(csrf)}">'
-                       f'<input type="hidden" 
+                       f'<input type="hidden" name="validated" value="1"><button class="btn small">Mark validated</button></form>')
+        body += (f'<tr><td><b>{util.esc(r["requirement_name"])}</b><div class="source small">{util.esc(r["draft"])[:180]}</div></td>'
+                 f'<td>{pill_for_status(r["status"])}</td><td>{util.esc(r["deadline"])}</td><td>{r["escalation_level"]}</td><td>{actions}</td></tr>')
+    if not requests:
+        body += '<tr><td colspan="5" class="muted">No requests generated yet.</td></tr>'
+    body += '</table></div>'
+    return layout(actor, supplier['name'], body, 'suppliers')
+
+
+# ---------------------------------------------------------------------------
+# Installations
+# ---------------------------------------------------------------------------
+
+def installations_list(c, actor):
+    tid = actor['tenant_id']
+    rows = c.execute('SELECT i.*,s.name sname FROM installations i LEFT JOIN suppliers s ON s.id=i.supplier_id WHERE i.tenant_id=? ORDER BY i.name', (tid,)).fetchall()
+    body = '<div class="top"><div><div class="eyebrow">Installations</div><div class="title">Producing installations</div>' \
+           '<div class="sub">Verification readiness is computed per installation, not per shipment.</div></div></div>' \
+           '<div class="card section"><table><tr><th>Installation</th><th>Supplier</th><th>Country</th><th>Route</th><th>Readiness</th><th></th></tr>'
+    for i in rows:
+        rd = engine.verification_readiness(c, tid, i['id'])
+        body += (f'<tr><td><b>{util.esc(i["name"])}</b></td><td>{util.esc(i["sname"] or "—")}</td><td>{util.esc(i["country"])}</td>'
+                 f'<td>{util.esc(i["production_route"] or "—")}</td><td>{pill_for_status(rd["status"])} {rd["score"]}%</td>'
+                 f'<td><a class="btn secondary small" href="/installation/{i["id"]}">Open</a></td></tr>')
+    if not rows:
+        body += '<tr><td colspan="6" class="muted">No installations yet -- add one from a supplier page.</td></tr>'
+    body += '</table></div>'
+    return layout(actor, 'Installations', body, 'installations')
+
+
+def installation_detail(c, actor, installation, csrf):
+    tid = actor['tenant_id']
+    iid = installation['id']
+    supplier = c.execute('SELECT * FROM suppliers WHERE id=?', (installation['supplier_id'],)).fetchone() if installation['supplier_id'] else None
+    lines = c.execute('SELECT * FROM import_lines WHERE tenant_id=? AND installation_id=?', (tid, iid)).fetchall()
+    emissions = c.execute('SELECT * FROM emissions_data WHERE tenant_id=? AND installation_id=? ORDER BY id DESC', (tid, iid)).fetchall()
+    methodologies = c.execute('SELECT * FROM methodologies').fetchall()
+    readiness = engine.verification_readiness(c, tid, iid)
+
+    body = f'''<div class="top"><div><div class="eyebrow">Installation</div><div class="title">{util.esc(installation["name"])}</div>
+<div class="sub">{util.esc(installation["country"])} · supplier {util.esc(supplier["name"]) if supplier else "unassigned"} · route {util.esc(installation["production_route"] or "not documented")}</div></div></div>'''
+
+    body += f'<div class="card section"><h2>Verification readiness</h2><div class="kpi">{readiness["score"]}%</div>{pill_for_status(readiness["status"])}<ul class="checklist section">'
+    for label, ok, reason in readiness['checklist']:
+        body += f'<li><span class="tick {"yes" if ok else "no"}">{"✓" if ok else "✗"}</span><div><b>{util.esc(label)}</b><div class="muted">{util.esc(reason)}</div></div></li>'
+    flabel, fok, freason = readiness['future_item']
+    body += f'<li><span class="tick {"yes" if fok else "no"}">{"✓" if fok else "○"}</span><div><b>{util.esc(flabel)}</b> <span class="pill info">not yet applicable</span><div class="muted">{util.esc(freason)}</div></div></li>'
+    body += '</ul></div>'
+
+    method_opts = ''.join(f'<option value="{m["id"]}">{util.esc(m["name"])}</option>' for m in methodologies)
+    body += f'''<div class="card section"><h2>Emissions data</h2>
+<form method="post" action="/installation/{iid}/emissions/add"><input type="hidden" name="csrf" value="{util.esc(csrf)}"><div class="formgrid3">
+<div class="field"><label>Direct intensity (tCO2e/t)</label><input name="direct_intensity" required></div>
+<div class="field"><label>Indirect intensity (tCO2e/t)</label><input name="indirect_intensity" value="0"></div>
+<div class="field"><label>Methodology</label><select name="methodology_id">{method_opts}</select></div></div>
+<div class="field"><label>Status</label><select name="status"><option value="candidate">Candidate — not ready to use</option><option value="validated">Validated — reviewed</option></select></div>
+<button class="btn">Record emissions data</button></form>
+<table class="section"><tr><th>Recorded</th><th>Direct</th><th>Indirect</th><th>Methodology</th><th>Status</th></tr>'''
+    for e in emissions:
+        m = c.execute('SELECT name FROM methodologies WHERE id=?', (e['methodology_id'],)).fetchone()
+        body += f'<tr><td>{util.esc(e["created"])}</td><td>{util.esc(e["direct_intensity"])}</td><td>{util.esc(e["indirect_intensity"])}</td><td>{util.esc(m["name"] if m else "—")}</td><td>{pill_for_status(e["status"])}</td></tr>'
+    body += '</table></div>'
+    body += '<div class="card section"><h2>Import lines referencing this installation</h2><table><tr><th>Line</th><th>CN</th><th>Quantity</th><th>Status</th><th></th></tr>'
+    for l in lines:
+        body += f'<tr><td>#{l["id"]}</td><td>{util.esc(l["cn_code"])}</td><td>{util.esc(l["quantity"])}</td><td>{pill_for_status(l["status"])}</td><td><a class="btn secondary small" href="/line/{l["id"]}">Trace →</a></td></tr>'
+    body += '</table></div>'
+    return layout(actor, installation['name'], body, 'installations')
