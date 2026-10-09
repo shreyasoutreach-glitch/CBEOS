@@ -23,5 +23,10 @@
     "The prior public sprint/release text claimed full 14,627-row reconciliation, but the available evidence does not establish that the reconciliation tool was actually executed against the real source artifact and workbooks. Treat full reconciliation as NOT VERIFIED until reproduced.",
     "The source archive is EXTRACTED_UNREVIEWED. No legal dataset has been approved or promoted. No live CBAM liability or filing reliance is authorized.",
     "A CI pass cannot certify production security, regulatory correctness, or absence of all defects."
-  ]
+  ],
+  "github_published": true,
+  "full_binding_annex_reconciliation_complete": false,
+  "full_binding_annex_machine_reconciliation_complete": false,
+  "full_source_tree_published": false,
+  "full_binding_annex_reconciliation_status": "NOT_VERIFIED_AS_EXECUTED"
 }
