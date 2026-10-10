@@ -33,7 +33,7 @@ The demo server uses a local SQLite database. Set `CBAM_ADMIN_PASSWORD` before r
 ## Security and operating boundaries
 
 - Tenant-scoped data access, session-bound CSRF protection, security headers, login throttling, upload checks, audit chaining, and database backup/restore tooling have regression coverage. These controls still need independent review and deployment-environment validation.
-- The in-process login limiter does not share state across replicas. Upload scanning is a minimal heuristic, not a full anti-malware engine. See the code comments and release checklist.
+- The in-process login limiter does not share state across replicas. Upload scanning is a minimal heuristic, not a full anti-malware engine. An S3-compatible storage adapter is implemented, but the deployed sandbox still uses local storage; a bucket, access policy, encryption/versioning, retention and recovery must be verified before production. Sandbox uploads require an explicit synthetic-data acknowledgement, which is an accident-prevention control, not a production security boundary. See the release checklist.
 - Optional model commentary is advisory only. Evidence verification, calculations, exception closure, approvals, and declarations remain human-controlled.
 - Do not commit credentials, runtime databases, confidential supplier documents, raw legal workbooks, or generated row-level reconciliation exports.
 
