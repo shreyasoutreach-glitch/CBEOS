@@ -17,6 +17,7 @@ from urllib.parse import parse_qs, urlparse
 from . import db as dbm
 from . import engine
 from . import agents
+from . import integrations
 from . import extraction
 from . import security
 from . import supplier_ops
@@ -582,6 +583,8 @@ class Handler(BaseHTTPRequestHandler):
                 return
             c = dbm.db()
             try:
+                if path == '/api/integrations':
+                    return self.send(json.dumps(integrations.status_snapshot(), ensure_ascii=False), ctype='application/json')
                 if path == '/':
                     return self.send(views.dashboard(c, a))
                 if path == '/cases':
