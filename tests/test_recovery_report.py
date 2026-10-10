@@ -46,7 +46,7 @@ class RecoveryWorkbookTests(unittest.TestCase):
         wb = load_workbook(BytesIO(payload), read_only=True, data_only=True)
         self.assertEqual(wb.sheetnames, [
             "Read Me & Summary", "Import Lines", "Evidence Gaps",
-            "Open Exceptions", "Supplier Follow-up", "Document Register"
+            "Open Exceptions", "Supplier Follow-up", "Pilot Measurement", "Document Register"
         ])
         summary = list(wb["Read Me & Summary"].values)
         self.assertIn(("Missing evidence requirements", 1), summary)
