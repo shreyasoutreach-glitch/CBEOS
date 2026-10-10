@@ -40,17 +40,23 @@
 - An admin-only `GET /api/integrations/probe` has been added. It performs bounded authenticated GET checks for configured model-provider and Resend endpoints, returns status codes only, and sends no email. This code-level capability is not evidence that the live credentials work.
 
 ### Still a hard NO-GO for customer production data
-- PostgreSQL is not implemented by the runtime database module; it remains SQLite-specific.
+- A psycopg2 compatibility layer is now in the runtime module, and the dedicated Supabase project has the 35-table schema, RLS, tenant-integrity triggers and foreign-key indexes. However, Render still runs SQLite because the server-side PostgreSQL login/connection secret is not provisioned. The adapter has not been verified against the live database and the full regression suite has not been rerun on the exact current head.
 - An S3-compatible object-storage adapter is implemented and unit-tested, but the deployed sandbox still uses local filesystem storage. Production bucket configuration, access policy, encryption/versioning, deletion/retention and recovery are not yet verified.
 - No off-host restore drill, approved malware-scanning integration, shared rate limiter, independent security review, approved retention/data-processing controls, or regulatory promotion sign-off is evidenced.
 - The new operational-safety and provider-probe tests must pass on the latest candidate commit before considering the code change stable.
 - Live integration probes must be run by an authorized administrator in the deployed environment. No outbound email is sent by the probe; actual delivery requires a separate controlled test and delivery webhook work.
 
 ### Required next acceptance criteria
-1. Implement and test a real PostgreSQL adapter/migration for every schema and query dependency; do not merely set `DATABASE_URL`.
+1. Provision a dedicated server-only PostgreSQL login and `CBAM_DATABASE_URL`, then exercise the adapter against the real Supabase schema, test every SQL dependency, seed data idempotently, and run the full regression suite against PostgreSQL; do not merely set `DATABASE_URL`.
 2. Configure and verify the S3 adapter in an isolated environment; prove bucket policy, encryption/versioning, access-controlled downloads, deletion/retention behavior, and recovery. Keep the production gate blocked until that evidence exists.
 3. Prove backup/restore and redeploy survival in a separate test environment.
 4. Re-run full CI, remote smoke and authenticated synthetic end-to-end workflow at the exact head commit.
 5. Run provider probes on Render with real credentials; then separately test a controlled model request and a single internal-recipient email with delivery confirmation.
 6. Complete independent legal review of extracted tables, effective dates, fallback and route semantics, and obtain sign-off before promoting any canonical dataset.
 7. Obtain independent security/privacy review and documented owner approval before changing the environment out of sandbox mode.
+
+
+## Commercial direction — 2026-10-11
+
+- Initial wedge: evidence recovery and review operations for Indian steel exporters with EU exposure, not a generic CBAM calculator or filing/certification claim. See `docs/COMMERCIAL_WEDGE.md`.
+- Paid pilot price and duration are hypotheses only. Do not claim savings, willingness-to-pay, or regulatory correctness until a paid pilot and qualified review establish them.
