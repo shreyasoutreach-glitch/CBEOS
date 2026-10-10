@@ -96,6 +96,10 @@ class FullWorkflowHTTPTests(unittest.TestCase):
 
     def test_admin_integration_probe_is_safe_and_does_not_send_email(self):
         cookie = self.login()
+        status, _, settings = self.request("GET", "/settings", cookie=cookie)
+        self.assertEqual(status, 200, settings)
+        self.assertIn("Production safety gate", settings)
+        self.assertIn("Run live provider probe", settings)
         status, _, body = self.request("GET", "/api/integrations/probe", cookie=cookie)
         self.assertEqual(status, 200, body)
         payload = json.loads(body)
