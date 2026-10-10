@@ -75,6 +75,18 @@ class SupplierDeliveryTests(unittest.TestCase):
         ).fetchone()[0]
         self.assertEqual(audit, 1)
 
+    def test_repeat_send_is_blocked_after_provider_acceptance(self):
+        from unittest.mock import patch
+        with patch("app.supplier_ops.notify_supplier", return_value={"accepted": True, "transport": "test-provider", "message_id": "msg_test_456"}) as send:
+            first_ok, _ = supplier_ops.send_request(self.c, self.tid, self.rid, self.uid)
+            second_ok, message = supplier_ops.send_request(self.c, self.tid, self.rid, self.uid)
+        self.assertTrue(first_ok)
+        self.assertFalse(second_ok)
+        self.assertIn("duplicate or out-of-order send blocked", message)
+        self.assertEqual(send.call_count, 1)
+        row = self.c.execute("SELECT status FROM supplier_requests WHERE id=? AND tenant_id=?", (self.rid, self.tid)).fetchone()
+        self.assertEqual(row["status"], "SENT")
+
     def test_resend_adapter_posts_only_after_human_trigger_and_records_acceptance(self):
         class Response:
             status = 200
