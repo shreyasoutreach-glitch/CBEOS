@@ -386,10 +386,20 @@ def handle_post(h, path):
             if not require_perm(a, 'manage_suppliers'):
                 return h.send('Forbidden', 403)
             rid = int(m.group(1))
-            supplier_ops.send_request(c, tid, rid, uid)
-            r = c.execute('SELECT supplier_id FROM supplier_requests WHERE id=?', (rid,)).fetchone()
+            sent, message = supplier_ops.send_request(c, tid, rid, uid)
+            r = c.execute('SELECT supplier_id FROM supplier_requests WHERE id=? AND tenant_id=?', (rid, tid)).fetchone()
             c.commit()
-            return h.redirect(f'/supplier/{r["supplier_id"]}')
+            if not r:
+                return h.send('Supplier request not found', 404)
+            # Show the provider outcome explicitly. A redirect alone hid failures and
+            # could make an unconfigured transport look like a successful send.
+            status = 200 if sent else 409
+            return h.send(
+                '<!doctype html><html><head><meta charset="utf-8"><title>Supplier request status</title></head>'
+                '<body><main><h1>Supplier request status</h1><p>' + util.esc(message) +
+                '</p><p><a href="/supplier/' + str(r["supplier_id"]) + '">Return to supplier</a></p></main></body></html>',
+                status,
+            )
 
         m = re.match(r'^/supplier_request/(\d+)/respond$', path)
         if m:
