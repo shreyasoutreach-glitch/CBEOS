@@ -1,7 +1,9 @@
 """Focused tests for the SQLite-to-PostgreSQL compatibility layer."""
+import os
 import unittest
+from unittest.mock import patch
 
-from app.db import _split_sql_statements, _translate_postgres_sql
+from app.db import _split_sql_statements, _translate_postgres_sql, db
 
 
 class PostgresAdapterTests(unittest.TestCase):
@@ -16,6 +18,16 @@ class PostgresAdapterTests(unittest.TestCase):
         sql, ignored = _translate_postgres_sql("INSERT OR IGNORE INTO demo(value) VALUES(?)")
         self.assertTrue(ignored)
         self.assertEqual(sql, "INSERT INTO demo(value) VALUES(%s) ON CONFLICT DO NOTHING")
+
+    def test_production_mode_refuses_ephemeral_sqlite_fallback(self):
+        env = {
+            'CBAM_CUSTOMER_DATA_MODE': 'production',
+            'CBAM_DATABASE_URL': '',
+            'DATABASE_URL': '',
+        }
+        with patch.dict(os.environ, env):
+            with self.assertRaisesRegex(RuntimeError, 'requires CBAM_DATABASE_URL'):
+                db()
 
     def test_regular_placeholders_are_translated(self):
         sql, ignored = _translate_postgres_sql("SELECT id FROM demo WHERE tenant_id=? AND status=?")
