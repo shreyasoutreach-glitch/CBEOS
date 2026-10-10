@@ -187,6 +187,26 @@ class FullWorkflowHTTPTests(unittest.TestCase):
             summary = json.loads(run["summary_json"])
             self.assertEqual(summary["readiness"]["verdict"], "BLOCKED")
             self.assertFalse(summary["llm_enabled"])
+            messages = c.execute(
+                "SELECT from_agent,to_agent,message_type FROM agent_messages WHERE run_id=? ORDER BY sequence_no",
+                (run["id"],),
+            ).fetchall()
+            handoffs = [(m["from_agent"], m["to_agent"]) for m in messages if m["message_type"] == "handoff"]
+            required_handoffs = [
+                ("Control Tower Orchestrator", "Intake & Scope Agent"),
+                ("Intake & Scope Agent", "Evidence Quality Agent"),
+                ("Evidence Quality Agent", "Supplier Operations Agent"),
+                ("Supplier Operations Agent", "Reconciliation Agent"),
+                ("Reconciliation Agent", "Regulatory Research Agent"),
+                ("Regulatory Research Agent", "Calculation Integrity Agent"),
+                ("Calculation Integrity Agent", "Commercial Exposure Agent"),
+                ("Commercial Exposure Agent", "Verifier Readiness Agent"),
+                ("Verifier Readiness Agent", "Declaration Package QA Agent"),
+                ("Declaration Package QA Agent", "Control Tower Orchestrator"),
+                ("Control Tower Orchestrator", "Human Reviewer"),
+            ]
+            for edge in required_handoffs:
+                self.assertIn(edge, handoffs, f"Missing ordered handoff: {edge}")
             audit = c.execute("SELECT COUNT(*) FROM audit WHERE case_id=? AND action='agent_workflow_completed'", (case_id,)).fetchone()[0]
             self.assertGreaterEqual(audit, 1)
         finally:
