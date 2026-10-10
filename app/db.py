@@ -570,10 +570,15 @@ class _PostgresConnection:
 def db():
     database_url = (os.getenv('CBAM_DATABASE_URL') or os.getenv('DATABASE_URL') or '').strip()
     mode = os.getenv('CBAM_CUSTOMER_DATA_MODE', 'sandbox').strip().lower()
-    if mode == 'production' and not database_url:
-        raise RuntimeError('Production mode requires CBAM_DATABASE_URL; refusing to use ephemeral SQLite.')
-    if database_url:
+    backend = os.getenv('CBAM_DB_BACKEND', 'sqlite').strip().lower()
+    if backend == 'postgres':
+        if not database_url:
+            raise RuntimeError('PostgreSQL backend requires CBAM_DATABASE_URL; refusing to fall back to SQLite.')
         return _PostgresConnection(database_url)
+    if backend != 'sqlite':
+        raise RuntimeError('Unsupported CBAM_DB_BACKEND; refusing to start.')
+    if mode == 'production':
+        raise RuntimeError('Production mode requires CBAM_DB_BACKEND=postgres and CBAM_DATABASE_URL; refusing to use SQLite.')
     c = sqlite3.connect(DB_PATH)
     c.row_factory = sqlite3.Row
     c.execute('PRAGMA foreign_keys=ON')
