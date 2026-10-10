@@ -1,8 +1,6 @@
 """Fail-closed operational gates for customer-data processing.
 
-The current application backend is SQLite + local filesystem. This module does not
-pretend those are production-grade shared storage. Sandbox mode remains usable for
-synthetic demos; production mode must refuse to start until each explicit gate is met.
+The database remains SQLite-specific. Document storage has a local sandbox adapter and an S3 adapter, but production must still verify bucket policy, encryption, versioning, access controls and recovery. Sandbox mode remains usable for synthetic demos; production mode must refuse to start until each explicit gate is met.
 """
 from __future__ import annotations
 
@@ -38,15 +36,13 @@ def _production_blockers() -> list[str]:
         blockers.append("database_storage_not_durable")
     storage_backend = os.getenv("CBAM_DOCUMENT_STORAGE_BACKEND", "local").strip().lower()
     bucket = os.getenv("CBAM_OBJECT_STORAGE_BUCKET", "").strip()
-    if storage_backend != "object_storage" or not bucket:
+    if storage_backend not in {"s3", "object_storage"} or not bucket:
         blockers.append("document_storage_not_durable")
-    # Upload code currently writes directly with open(path, 'wb'); it does not
-    # implement an object-storage adapter. Never treat a bucket env var as support.
-    blockers.append("object_storage_backend_not_implemented")
 
     # Explicit approvals are deliberately separate. A configured path or
     # environment variable is not evidence that a recovery/security control works.
     for variable, code in (
+        ("CBAM_OBJECT_STORAGE_CONFIG_VERIFIED", "object_storage_configuration_not_verified"),
         ("CBAM_MALWARE_SCAN_ENABLED", "malware_scanning_not_enabled"),
         ("CBAM_BACKUP_RESTORE_VERIFIED", "backup_restore_not_verified"),
         ("CBAM_SECURITY_REVIEW_APPROVED", "independent_security_review_missing"),
