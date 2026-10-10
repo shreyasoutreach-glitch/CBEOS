@@ -16,6 +16,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 TMP = tempfile.TemporaryDirectory(prefix="cbeos-full-flow-")
 os.environ["CBAM_DB_PATH"] = str(Path(TMP.name) / "full-flow.db")
+os.environ["CBAM_UPLOAD_DIR"] = str(Path(TMP.name) / "uploads")
 os.environ["CBAM_ADMIN_EMAIL"] = "full-flow@example.test"
 os.environ["CBAM_ADMIN_PASSWORD"] = "full-flow-test-password"
 os.environ.pop("CBAM_LLM_API_KEY", None)
