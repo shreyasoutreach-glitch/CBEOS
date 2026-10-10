@@ -8,6 +8,7 @@ from pathlib import Path
 from urllib.parse import urlparse
 
 ROOT = Path(__file__).resolve().parents[1]
+from . import ops_readiness
 
 
 def _model_status() -> dict:
@@ -99,8 +100,8 @@ def status_snapshot() -> dict:
             "scope": "no filing, declaration submission, or registry write access",
         },
         "customer_data_mode": {
-            "status": "sandbox_only",
-            "live_document_processing": False,
-            "scope": "do not upload live customer documents until storage, retention, access, contracts and security review are approved",
+            **ops_readiness.customer_data_snapshot(),
+            "live_document_processing": ops_readiness.customer_data_snapshot()["production_allowed"],
+            "scope": "environment flags are not proof by themselves; every approval must be backed by reviewed evidence",
         },
     }
