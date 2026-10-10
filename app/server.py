@@ -597,6 +597,16 @@ class Handler(BaseHTTPRequestHandler):
                 return
             c = dbm.db()
             try:
+                if path == '/api/integrations/probe':
+                    if not require_perm(a, 'manage_users'):
+                        return self.send('Forbidden', 403)
+                    # This is an explicit admin action. It performs bounded GET
+                    # probes only: no email is sent and no provider payload is returned.
+                    result = {
+                        'configuration': integrations.status_snapshot(),
+                        'live_probe': integrations.probe_external_integrations(timeout=6.0),
+                    }
+                    return self.send(json.dumps(result, ensure_ascii=False), ctype='application/json')
                 if path == '/api/integrations':
                     return self.send(json.dumps(integrations.status_snapshot(), ensure_ascii=False), ctype='application/json')
                 if path == '/':
