@@ -115,6 +115,10 @@ def send_request(c, tid, req_id, uid):
     ).fetchone()
     if not r:
         return False, 'Not found'
+    # Only drafts may be sent. This blocks accidental repeat sends after provider
+    # acceptance or once a request has moved into any later workflow state.
+    if str(r['status'] or '').upper() != 'DRAFT':
+        return False, 'Request is not a draft; duplicate or out-of-order send blocked.'
     delivery = notify_supplier(r)
     if not delivery.get('accepted'):
         state = delivery.get('status', 'provider_error')
