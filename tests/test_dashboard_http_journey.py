@@ -17,6 +17,9 @@ TMP = tempfile.TemporaryDirectory(prefix="cbeos-journey-")
 os.environ["CBAM_DB_PATH"] = str(Path(TMP.name) / "journey.db")
 os.environ["CBAM_ADMIN_EMAIL"] = "journey@example.test"
 os.environ["CBAM_ADMIN_PASSWORD"] = "journey-test-password"
+os.environ.pop("CBAM_LLM_API_KEY", None)
+os.environ.pop("CBAM_LLM_MODEL", None)
+os.environ.pop("CBAM_LLM_BASE_URL", None)
 
 from app import db as dbm, security, util
 from app.server import Handler
@@ -77,6 +80,30 @@ class OperatorJourneyHTTPTests(unittest.TestCase):
                 self.assertEqual(status, 200, f"{path} returned {status}: {page[:300]}")
                 self.assertIn(expected.lower(), page.lower())
                 self.assertIn("Content-Security-Policy", headers)
+
+    def test_integration_status_is_authenticated_and_never_claims_live_connectivity(self):
+        status, headers, body = self.request("GET", "/api/integrations")
+        self.assertIn(status, (302, 303))
+        self.assertTrue(headers.get("Location", "").endswith("/login"))
+
+        status, headers, body = self.request(
+            "POST", "/login",
+            {"email": "journey@example.test", "password": "journey-test-password"},
+        )
+        self.assertEqual(status, 303, body)
+        cookie = headers["Set-Cookie"].split(";", 1)[0]
+        status, headers, body = self.request("GET", "/api/integrations", cookie=cookie)
+        self.assertEqual(status, 200, body)
+        self.assertEqual(headers.get("Content-Type", "").split(";", 1)[0], "application/json")
+        snapshot = json.loads(body)
+        self.assertEqual(snapshot["model_provider"]["status"], "not_configured")
+        self.assertFalse(snapshot["model_provider"]["secret_present"])
+        self.assertEqual(snapshot["supplier_messaging"]["status"], "not_connected")
+        self.assertEqual(snapshot["external_cbam_registry"]["status"], "not_connected")
+        self.assertFalse(snapshot["customer_data_mode"]["live_document_processing"])
+        self.assertEqual(snapshot["regulatory_knowledge"]["legal_reconciliation"], "not_verified")
+        self.assertNotIn("api_key", body.lower())
+        self.assertNotIn("token", body.lower())
 
     def test_guided_destinations_do_not_leak_without_session(self):
         for path in ("/cases", "/suppliers", "/exceptions", "/verification"):
