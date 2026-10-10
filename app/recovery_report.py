@@ -198,6 +198,32 @@ def build_recovery_workbook(c, tenant_id, case_id):
           r["status"], r["deadline"], r["sent_at"], r["responded_at"],
           r["escalation_level"], r["draft"]] for r in requests])
 
+    metrics = wb.create_sheet("Pilot Measurement")
+    metrics_rows = [
+        ["Pilot metric", "Baseline (before sprint)", "Result (after sprint)", "Change (calculate after entry)", "Measurement method"],
+        ["Staff hours spent collecting/reconciling", "", "", "Baseline minus result", "Use time logs; positive means hours saved."],
+        ["Business days from complete intake to reviewer handoff", "", "", "Baseline minus result", "Record intake-complete and handoff dates; positive means faster."],
+        ["Open evidence gaps", "", "", "Baseline minus result", "Count comparable requirements; positive means fewer open gaps."],
+        ["Open exceptions", "", "", "Baseline minus result", "Compare equivalent case scope and status rules."],
+        ["Supplier response rate (percentage points, 0-100)", "", "", "Result minus baseline", "Use sent requests and confirmed replies; positive means improved."],
+        ["Reviewer rework items", "", "", "Baseline minus result", "Count changes requested by reviewer; positive means less rework."],
+        ["Evidence note", "Enter baseline before work starts.", "Enter measured result after handoff.", "", "Do not claim savings from estimates alone; retain time logs and event evidence."],
+    ]
+    for row in metrics_rows:
+        metrics.append([_safe(v) for v in row])
+    metrics.freeze_panes = "A2"
+    metrics.sheet_view.showGridLines = False
+    for cell in metrics[1]:
+        cell.fill = header_fill
+        cell.font = header_font
+        cell.alignment = Alignment(vertical="top", wrap_text=True)
+    for row in metrics.iter_rows(min_row=2):
+        for cell in row:
+            cell.alignment = Alignment(vertical="top", wrap_text=True)
+    for col, width in {"A": 46, "B": 25, "C": 25, "D": 28, "E": 78}.items():
+        metrics.column_dimensions[col].width = width
+    metrics.auto_filter.ref = "A1:E7"
+
     sheet("Document Register", [
         "Document ID", "Filename", "Document type", "Status", "Scan status",
         "Size bytes", "SHA-256", "Version", "Uploaded at", "Import line ID",
