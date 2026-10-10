@@ -1,6 +1,6 @@
 """Fail-closed operational gates for customer-data processing.
 
-The database remains SQLite-specific. Document storage has a local sandbox adapter and an S3 adapter, but production must still verify bucket policy, encryption, versioning, access controls and recovery. Sandbox mode remains usable for synthetic demos; production mode must refuse to start until each explicit gate is met.
+PostgreSQL support is implemented as a compatibility layer, but a live connection and object-storage controls must be verified before production. Sandbox mode remains usable for synthetic demos; production mode must refuse to start until each explicit gate is met.
 """
 from __future__ import annotations
 
@@ -19,21 +19,18 @@ def _production_blockers() -> list[str]:
     """Return all production gate blockers, even while the service runs as a sandbox."""
     blockers: list[str] = []
 
-    # Current db.py only implements SQLite. A DATABASE_URL by itself does not
-    # mean the application actually uses PostgreSQL.
     backend = os.getenv("CBAM_DB_BACKEND", "sqlite").strip().lower()
+    database_url = (os.getenv("CBAM_DATABASE_URL") or os.getenv("DATABASE_URL") or "").strip()
     if backend != "postgres":
         blockers.append("database_backend_not_postgres")
-    # The current db.py module only imports sqlite3 and uses SQLite-specific
-    # PRAGMA/sqlite_master/last_insert_rowid constructs. Setting an env var is
-    # not a real PostgreSQL implementation, so never allow production yet.
-    blockers.append("postgres_backend_not_implemented")
-    if not os.getenv("DATABASE_URL", "").strip():
+    if not database_url:
         blockers.append("database_url_missing")
-
-    db_path = os.getenv("CBAM_DB_PATH", "")
-    if not db_path or db_path.startswith("/tmp/") or db_path == ":memory:":
-        blockers.append("database_storage_not_durable")
+    if backend != "postgres":
+        db_path = os.getenv("CBAM_DB_PATH", "")
+        if not db_path or db_path.startswith("/tmp/") or db_path == ":memory:":
+            blockers.append("database_storage_not_durable")
+    else:
+        blockers.append("database_connection_not_verified")
     storage_backend = os.getenv("CBAM_DOCUMENT_STORAGE_BACKEND", "local").strip().lower()
     bucket = os.getenv("CBAM_OBJECT_STORAGE_BUCKET", "").strip()
     if storage_backend not in {"s3", "object_storage"} or not bucket:
