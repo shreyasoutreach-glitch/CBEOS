@@ -41,14 +41,14 @@
 
 ### Still a hard NO-GO for customer production data
 - PostgreSQL is not implemented by the runtime database module; it remains SQLite-specific.
-- Object storage is not implemented; uploads use local filesystem paths.
+- An S3-compatible object-storage adapter is implemented and unit-tested, but the deployed sandbox still uses local filesystem storage. Production bucket configuration, access policy, encryption/versioning, deletion/retention and recovery are not yet verified.
 - No off-host restore drill, approved malware-scanning integration, shared rate limiter, independent security review, approved retention/data-processing controls, or regulatory promotion sign-off is evidenced.
 - The new operational-safety and provider-probe tests must pass on the latest candidate commit before considering the code change stable.
 - Live integration probes must be run by an authorized administrator in the deployed environment. No outbound email is sent by the probe; actual delivery requires a separate controlled test and delivery webhook work.
 
 ### Required next acceptance criteria
 1. Implement and test a real PostgreSQL adapter/migration for every schema and query dependency; do not merely set `DATABASE_URL`.
-2. Implement durable object storage, content hashing, access-controlled downloads, deletion/retention behavior, and a malware scanning integration.
+2. Configure and verify the S3 adapter in an isolated environment; prove bucket policy, encryption/versioning, access-controlled downloads, deletion/retention behavior, and recovery. Keep the production gate blocked until that evidence exists.
 3. Prove backup/restore and redeploy survival in a separate test environment.
 4. Re-run full CI, remote smoke and authenticated synthetic end-to-end workflow at the exact head commit.
 5. Run provider probes on Render with real credentials; then separately test a controlled model request and a single internal-recipient email with delivery confirmation.
