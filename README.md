@@ -54,7 +54,8 @@ Do not deploy or use for customer work until the remote regression pipeline is g
 - Surface configured missing-evidence requirements and cross-document conflicts as exceptions.
 - Route exception states through the application state machine and record transitions in the tenant audit chain.
 - Run advisory, read-only agent triage and persist a hash-chained hand-off; show a blocked verification-readiness result and a review-package preview.
-- Export a tenant-scoped, six-sheet XLSX recovery handoff with import lines, evidence gaps, open exceptions, supplier follow-up and a document register. Suggested owner roles and next actions are recommendations for human review, not automated resolutions.\n- Produce operational workflow counts for a demo. These are not proof of regulatory compliance, liability, savings or ROI.
+- Export a tenant-scoped, seven-sheet XLSX recovery handoff with import lines, evidence gaps, open exceptions, supplier follow-up and a document register. Suggested owner roles and next actions are recommendations for human review, not automated resolutions.
+- Produce operational workflow counts for a demo. These are not proof of regulatory compliance, liability, savings or ROI.
 
 **Not currently deliverable as a production service**:
 - Authoritative CBAM liability calculations, legal interpretation, filing or compliance certification.
