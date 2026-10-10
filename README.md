@@ -7,12 +7,12 @@ CBEOS is a control-tower prototype for CBAM evidence intake, traceable import-li
 ## Current engineering status
 
 - Public source repository: this branch contains the runtime app modules, test suites, CI workflow, and regulatory staging/governance tools.
-- CI checks dependency vulnerabilities, Python compilation, and the regression runner (17 suites after the operational-safety and integration-probe gates were added). See [GitHub Actions](https://github.com/shreyasoutreach-glitch/CBEOS/actions) for the latest authoritative result.
+- CI checks dependency vulnerabilities, Python compilation, and the regression runner (18 suites, including operational-safety, integration-probe, and recovery-workbook tests). See [GitHub Actions](https://github.com/shreyasoutreach-glitch/CBEOS/actions) for the latest authoritative result.
 - Regulatory source-cell comparison is documented as complete for 14,627 staged rows (12,540 Annex I defaults, 283 Annex IV precursor defaults, and 1,804 benchmark rows) with zero machine-reported mismatches against extracted EUR-Lex table cells. This is **not** qualified legal review: completeness of annex/table extraction, effective dates, route/fallback semantics, source locators, and legal interpretation remain open; no canonical dataset has been approved or promoted. See [row-level reconciliation and golden review](docs/ROW_LEVEL_RECONCILIATION_AND_GOLDEN_REVIEW.md).
 - No regulatory dataset has been promoted. No production deployment, off-host recovery drill, or independent Antigravity verification has been completed. Production mode now fails closed while the actual PostgreSQL and object-storage adapters, security/recovery approvals, and regulatory approval remain absent.
 - The active candidate branch now also includes a secret-safe integration-status endpoint, provider-contract tests, an HTTP multipart-upload-to-agent-workflow regression, and Render runtime/blueprint configuration. Check [GitHub Actions](https://github.com/shreyasoutreach-glitch/CBEOS/actions) for the exact latest-head result before deploying.\n- A clean CI run is necessary but does not by itself establish regulatory correctness, security certification, or production readiness.
 
-See [publication status](PUBLICATION_STATUS.md), [release status](RELEASE_STATUS.json), [release checklist](docs/RELEASE_CHECKLIST.md), [Antigravity verification brief](docs/ANTIGRAVITY_VERIFICATION_BRIEF.md), and [regulatory source hierarchy](docs/REGULATORY_SOURCE_HIERARCHY.md).
+See [publication status](PUBLICATION_STATUS.md), [release status](RELEASE_STATUS.json), [release checklist](docs/RELEASE_CHECKLIST.md), [Antigravity verification brief](docs/ANTIGRAVITY_VERIFICATION_BRIEF.md), [regulatory source hierarchy](docs/REGULATORY_SOURCE_HIERARCHY.md), and the [iterative buyer-value audit](docs/BUYER_VALUE_AUDIT.md).
 
 ## Run locally
 
@@ -54,11 +54,11 @@ Do not deploy or use for customer work until the remote regression pipeline is g
 - Surface configured missing-evidence requirements and cross-document conflicts as exceptions.
 - Route exception states through the application state machine and record transitions in the tenant audit chain.
 - Run advisory, read-only agent triage and persist a hash-chained hand-off; show a blocked verification-readiness result and a review-package preview.
-- Produce operational workflow counts for a demo. These are not proof of regulatory compliance, liability, savings or ROI.
+- Export a tenant-scoped, six-sheet XLSX recovery handoff with import lines, evidence gaps, open exceptions, supplier follow-up and a document register. Suggested owner roles and next actions are recommendations for human review, not automated resolutions.\n- Produce operational workflow counts for a demo. These are not proof of regulatory compliance, liability, savings or ROI.
 
 **Not currently deliverable as a production service**:
 - Authoritative CBAM liability calculations, legal interpretation, filing or compliance certification.
-- A verified canonical regulatory dataset: full row-level reconciliation remains unverified and staged data has not been approved/promoted.
+- A legally approved canonical regulatory dataset: machine comparison of 14,627 staged rows is documented as complete, but completeness, legal interpretation, effective dates and fallback/route semantics still require qualified review; staged data has not been approved/promoted.
 - Guaranteed supplier email delivery: the supplier workflow can record request states, but do not claim an email was delivered without provider delivery evidence.
 - Production-grade customer data processing, uptime/SLA, multi-replica rate limiting, full malware scanning, verified off-host disaster recovery or independent security assurance.
 - Quantified customer savings, risk reduction or turnaround improvements without a measured pilot baseline and recorded outcomes.
