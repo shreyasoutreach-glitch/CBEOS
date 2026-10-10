@@ -61,10 +61,10 @@ class SupplierDeliveryTests(unittest.TestCase):
         self.assertEqual(audit, 1)
 
     def test_confirmed_transport_marks_request_sent(self):
-        with patch("app.supplier_ops.notify_supplier", return_value={"delivered": True, "transport": "test-provider"}):
+        with patch("app.supplier_ops.notify_supplier", return_value={"accepted": True, "transport": "test-provider", "message_id": "msg_test_123"}):
             delivered, message = supplier_ops.send_request(self.c, self.tid, self.rid, self.uid)
         self.assertTrue(delivered)
-        self.assertEqual(message, "")
+        self.assertIn("Accepted by email provider", message)
         row = self.c.execute("SELECT status,sent_at FROM supplier_requests WHERE id=? AND tenant_id=?", (self.rid, self.tid)).fetchone()
         self.assertEqual(row["status"], "SENT")
         self.assertTrue(row["sent_at"])
