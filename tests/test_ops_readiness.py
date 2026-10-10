@@ -50,11 +50,11 @@ class OperationalReadinessTests(unittest.TestCase):
             "CBAM_REGULATORY_DATA_APPROVED": "true",
         }
         with patch.dict(os.environ, env, clear=True):
-            # This module only records the DB backend contract; it cannot turn
-            # the current SQLite db.py implementation into a PostgreSQL driver.
-            # The test documents the explicit gates, not an end-to-end migration.
-            self.assertEqual(ops_readiness.production_blockers(), [])
-            self.assertTrue(ops_readiness.customer_data_snapshot()["production_allowed"])
+            # Even all approval flags cannot bypass missing implementations.
+            blockers = ops_readiness.production_blockers()
+            self.assertIn("postgres_backend_not_implemented", blockers)
+            self.assertIn("object_storage_backend_not_implemented", blockers)
+            self.assertFalse(ops_readiness.customer_data_snapshot()["production_allowed"])
 
 
 if __name__ == "__main__":
