@@ -30,15 +30,23 @@ def production_blockers() -> list[str]:
     backend = os.getenv("CBAM_DB_BACKEND", "sqlite").strip().lower()
     if backend != "postgres":
         blockers.append("database_backend_not_postgres")
+    # The current db.py module only imports sqlite3 and uses SQLite-specific
+    # PRAGMA/sqlite_master/last_insert_rowid constructs. Setting an env var is
+    # not a real PostgreSQL implementation, so never allow production yet.
+    blockers.append("postgres_backend_not_implemented")
     if not os.getenv("DATABASE_URL", "").strip():
         blockers.append("database_url_missing")
 
     db_path = os.getenv("CBAM_DB_PATH", "")
     if not db_path or db_path.startswith("/tmp/") or db_path == ":memory:":
         blockers.append("database_storage_not_durable")
-    upload_path = os.getenv("CBAM_UPLOAD_DIR", "")
-    if not upload_path or upload_path.startswith("/tmp/"):
+    storage_backend = os.getenv("CBAM_DOCUMENT_STORAGE_BACKEND", "local").strip().lower()
+    bucket = os.getenv("CBAM_OBJECT_STORAGE_BUCKET", "").strip()
+    if storage_backend != "object_storage" or not bucket:
         blockers.append("document_storage_not_durable")
+    # Upload code currently writes directly with open(path, 'wb'); it does not
+    # implement an object-storage adapter. Never treat a bucket env var as support.
+    blockers.append("object_storage_backend_not_implemented")
 
     # Explicit approvals are deliberately separate. A configured path or
     # environment variable is not evidence that a recovery/security control works.
