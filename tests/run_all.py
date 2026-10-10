@@ -21,6 +21,7 @@ SUITES = [
     'test_eurlex_table_extraction.py',
     'test_source_governance.py',
     'test_db_operations.py',
+    'test_ops_readiness.py',
 ]
 results = []
 for suite in SUITES:
