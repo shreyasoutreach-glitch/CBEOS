@@ -1,9 +1,9 @@
 {
   "release": "CBEOS-client-outcomes-megasprint-2026-10-10",
-  "status": "NOT_PRODUCTION_READY_POSTGRES_SCHEMA_CREATED_RUNTIME_CONNECTION_BLOCKED",
+  "status": "NOT_PRODUCTION_READY_POSTGRES_SCHEMA_READY_CONNECTION_AND_STORAGE_BLOCKED",
   "branch": "meg-sprint/verified-client-outcomes-2026-10-10",
   "latest_known_green_main_commit": "c5f8a1d7534685db5fe8af07f86d1629681239f3",
-  "sprint_branch_ci": "NOT_VERIFIED_ON_CURRENT_HEAD",
+  "sprint_branch_ci": "PASS_ON_COMMIT_e7b42eaece33ef2e9b1edc04ce1c05a97a6c8257_RUN_38086359609",
   "client_outcome_dashboard": "IMPLEMENTED_AND_REGRESSION_TESTED_ON_9f8f361f21aa0c6ccff39e548835f890e7135325",
   "guided_dashboard_navigation": "IMPLEMENTED_AND_REGRESSION_TESTED_ON_9f8f361f21aa0c6ccff39e548835f890e7135325",
   "regression_assertions": "PASS_ON_COMMIT_9f8f361f21aa0c6ccff39e548835f890e7135325",
@@ -12,7 +12,7 @@
   "canonical_legal_dataset_promoted": false,
   "golden_arithmetic_fixtures": "ARITHMETIC_FIXTURES_ONLY_SOURCE_PROVENANCE_AND_LEGAL_CORRECTNESS_UNVERIFIED",
   "production_deployed": false,
-  "sandbox_deployment": "LIVE_RENDER_FREE_SANDBOX_SQLITE; SUPABASE_SCHEMA_CREATED; APP_CONNECTION_SECRET_NOT_PROVISIONED",
+  "sandbox_deployment": "LIVE_RENDER_SANDBOX; POSTGRES_SCHEMA_PRESENT; RENDER_DB_SECRET_NOT_INSTALLED; STORAGE_BUCKET_NOT_CREATED",
   "antigravity_verification_complete": false,
   "client_outreach_authorized": false,
   "complete_source_tree_published": false,
@@ -26,7 +26,11 @@
     "GitHub Actions run 37985734264 passed dependency audit, compileall, and all ten regression suites on commit 9f8f361f21aa0c6ccff39e548835f890e7135325. The subsequent release-status metadata update requires a fresh run before claiming CI green on that newer commit.",
     "2026-10-11 update: CBEOS Supabase project xlkvsclqelnibeaeptjl now has 35 application tables with RLS enabled, 15 tenant relationship triggers, two agent-run integrity triggers, and missing foreign-key indexes. A synthetic cross-tenant insert was rejected and test rows were removed.",
     "PostgreSQL compatibility code, pinned psycopg2 dependency, production fail-closed check, and focused adapter tests are in the candidate branch. Render remains SQLite because a dedicated server-side database login/connection secret could not be provisioned through the available connector actions. The current-head full regression suite has not been verified.",
-    "Commercial wedge documented as an evidence recovery sprint for Indian steel exporters; pricing is a hypothesis, not validated willingness-to-pay."
+    "Commercial wedge documented as an evidence recovery sprint for Indian steel exporters; pricing is a hypothesis, not validated willingness-to-pay.",
+    "2026-10-11 verification: GitHub Actions CBEOS tests run 38086359609 passed on commit e7b42eaece33ef2e9b1edc04ce1c05a97a6c8257. Render deployment of that commit was in progress at the last check; no claim of current live smoke success is made.",
+    "Supabase runtime checks: 35 application tables, all with RLS enabled; zero tables selectable by anon; 15 tenant relationship guards and two agent-run guards. Synthetic cross-tenant import-line insert and mismatched agent-run tenant/case insert were rejected; synthetic rows cleaned up.",
+    "Supabase Storage check: zero buckets and zero storage policies are configured. No private object-storage canary upload/download/delete test can run until a bucket and storage credentials are provisioned. Retention/deletion lifecycle remains unverified.",
+    "The provided PostgreSQL connection string could not be installed into Render because the environment-variable update was blocked by credential safety checks. No workaround was attempted. The connection must be provisioned through an approved secret-entry path. A least-privilege application login is still absent; do not run production using the postgres superuser connection."
   ],
   "github_published": true,
   "full_binding_annex_reconciliation_complete": false,
