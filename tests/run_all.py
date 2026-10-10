@@ -23,6 +23,7 @@ SUITES = [
     'test_db_operations.py',
     'test_ops_readiness.py',
     'test_integration_probes.py',
+    'test_recovery_report.py',
 ]
 results = []
 for suite in SUITES:
