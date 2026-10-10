@@ -16,7 +16,7 @@ class OperationalReadinessTests(unittest.TestCase):
             self.assertEqual(snapshot["status"], "sandbox_only")
             self.assertFalse(snapshot["production_allowed"])
             self.assertIn("postgres_backend_not_implemented", snapshot["blockers"])
-            self.assertIn("object_storage_backend_not_implemented", snapshot["blockers"])
+            self.assertIn("document_storage_not_durable", snapshot["blockers"])
             self.assertEqual(ops_readiness.production_blockers(), [])
 
     def test_production_mode_reports_missing_storage_and_approvals(self):
@@ -55,7 +55,7 @@ class OperationalReadinessTests(unittest.TestCase):
             # Even all approval flags cannot bypass missing implementations.
             blockers = ops_readiness.production_blockers()
             self.assertIn("postgres_backend_not_implemented", blockers)
-            self.assertIn("object_storage_backend_not_implemented", blockers)
+            self.assertIn("object_storage_configuration_not_verified", blockers)
             self.assertFalse(ops_readiness.customer_data_snapshot()["production_allowed"])
 
 
