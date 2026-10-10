@@ -11,6 +11,7 @@ SUITES = [
     'test_security.py',
     'test_regulatory_import.py',
     'test_agents.py',
+    'test_provider_contract.py',
     'test_demo_render_regression.py',
     'test_dashboard_http_journey.py',
     'test_legal_data_pipeline.py',
