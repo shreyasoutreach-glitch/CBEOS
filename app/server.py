@@ -25,7 +25,7 @@ from . import util
 from . import views
 
 HOST = os.getenv('CBAM_HOST', '127.0.0.1')
-PORT = int(os.getenv('CBAM_PORT', '8000'))
+PORT = int(os.getenv('CBAM_PORT') or os.getenv('PORT', '8000'))
 
 
 def fv(f, k, d=''):
