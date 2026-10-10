@@ -23,6 +23,7 @@ from . import security
 from . import supplier_ops
 from . import util
 from . import views
+from . import ops_readiness
 
 HOST = os.getenv('CBAM_HOST', '127.0.0.1')
 PORT = int(os.getenv('CBAM_PORT') or os.getenv('PORT', '8000'))
@@ -570,6 +571,9 @@ class Handler(BaseHTTPRequestHandler):
                     present = {row['name'] for row in probe.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()}
                     if not required.issubset(present):
                         raise RuntimeError('Required schema is missing')
+                    blockers = ops_readiness.production_blockers()
+                    if os.getenv('CBAM_CUSTOMER_DATA_MODE', 'sandbox').strip().lower() == 'production' and blockers:
+                        return self.send(json.dumps({'ready': False, 'mode': 'production', 'blockers': blockers}), 503, ctype='application/json')
                     return self.send(json.dumps({'ready': True}), ctype='application/json')
                 except Exception:
                     import logging
@@ -725,6 +729,9 @@ class Handler(BaseHTTPRequestHandler):
 
 
 def main():
+    # Production mode must fail closed until the database, file storage, recovery,
+    # security, regulatory, and data-processing gates are independently evidenced.
+    ops_readiness.require_production_ready()
     dbm.init()
     print(f'CBAM Evidence OS (Control Tower) running at http://{HOST}:{PORT}/')
     print('Admin: ' + os.getenv('CBAM_ADMIN_EMAIL', 'admin@example.com'))
