@@ -2,3 +2,4 @@
 # Core app is intentionally dependency-light; these packages support PDF/XLSX extraction.
 pypdf>=5.0
 openpyxl>=3.1
+boto3>=1.35
