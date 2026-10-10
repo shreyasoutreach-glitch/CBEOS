@@ -351,6 +351,7 @@ def case_detail(c, actor, case, csrf):
     body = f'''<div class="top"><div><div class="eyebrow">Case · {util.esc(case["period"])}</div><div class="title">{util.esc(case["case_name"])}</div>
 <div class="sub">{util.esc(case["company"])} · {util.esc(case["sector"] or "sector not set")} · status {util.esc(case["status"])}</div></div>
 <div class="actions"><a class="btn" href="/case/{cid}/agents">Run agent workflow</a><a class="btn secondary" href="/case/{cid}/pack">Evidence pack (JSON)</a>
+<a class="btn secondary" href="/case/{cid}/recovery-report.xlsx">Recovery workbook (XLSX)</a>
 <a class="btn secondary" href="/case/{cid}/declaration">Declaration package</a>
 {'<form method="post" action="/approve" style="display:inline"><input type="hidden" name="case_id" value="' + str(cid) + '"><input type="hidden" name="csrf" value="' + util.esc(csrf) + '"><button class="btn" ' + ('' if rd['ready'] else 'disabled') + '>Approve case</button></form>'}
 </div></div>
