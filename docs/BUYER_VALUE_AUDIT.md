@@ -31,7 +31,7 @@ Added an authenticated, tenant-scoped **Recovery Workbook (XLSX)** download to e
 - Document Register
 - Pilot Measurement, a blank baseline-versus-result worksheet for staff hours, elapsed days, open gaps, open exceptions, supplier response rate and reviewer rework.
 
-The gap and exception sheets now include a suggested owner role and a category-specific next action. The pilot worksheet deliberately does not invent savings; baseline and result values must be measured. The workbook escapes formula-like untrusted strings, excludes raw extracted document text and credentials, and states that it is an operational handoff, not a legal opinion or compliance certificate. Unit and HTTP journey tests are included in CI.
+The gap and exception sheets now include a suggested owner role and a category-specific next action. The pilot worksheet deliberately does not invent savings; baseline and result values must be measured. Sandbox uploads also require an explicit synthetic-test-data acknowledgement in both the UI and request handler, reducing accidental uploads but not replacing production access controls. The workbook escapes formula-like untrusted strings, excludes raw extracted document text and credentials, and states that it is an operational handoff, not a legal opinion or compliance certificate. Unit and HTTP journey tests are included in CI.
 
 This is a better deliverable, not yet proof of customer willingness to pay.
 
@@ -39,7 +39,7 @@ This is a better deliverable, not yet proof of customer willingness to pay.
 
 **Still no, not as an unattended SaaS subscription.**
 
-The workbook makes the output easier to hand to a team, but it cannot create evidence that a supplier has not provided. Nor does it prove that requests were delivered, responses received, data persisted safely, or that a customer saved enough staff time to justify a recurring fee. The current Render service uses sandbox mode, SQLite-specific persistence and local filesystem uploads. Production mode must remain blocked until real PostgreSQL and durable object storage are implemented and tested, backups are restored in a drill, retention/deletion is enforced, malware scanning and security review are evidenced, and live integration checks pass.
+The workbook makes the output easier to hand to a team, but it cannot create evidence that a supplier has not provided. Nor does it prove that requests were delivered, responses received, data persisted safely, or that a customer saved enough staff time to justify a recurring fee. The current Render service remains sandbox-only, with SQLite-specific persistence and local filesystem uploads. An S3 adapter now exists in code, but no production bucket is configured or verified. Production mode must remain blocked until a real PostgreSQL adapter/migration exists, S3 bucket policy/encryption/access/retention/recovery are tested, backup restore is drilled, malware scanning and security review are evidenced, and live integration checks pass.
 
 ### Commercial correction
 
