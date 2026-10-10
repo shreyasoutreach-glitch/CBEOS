@@ -1,0 +1,20 @@
+services:
+  - type: web
+    name: cbeos-sandbox
+    runtime: python
+    plan: free
+    region: frankfurt
+    branch: meg-sprint/verified-client-outcomes-2026-10-10
+    autoDeploy: true
+    buildCommand: pip install -r requirements.txt
+    startCommand: CBAM_HOST=0.0.0.0 python server.py
+    healthCheckPath: /readyz
+    envVars:
+      - key: CBAM_ADMIN_EMAIL
+        sync: false
+      - key: CBAM_ADMIN_PASSWORD
+        sync: false
+      - key: CBAM_DB_PATH
+        value: /tmp/cbeos-sandbox.db
+      - key: CBAM_UPLOAD_DIR
+        value: /tmp/cbeos-sandbox-uploads
