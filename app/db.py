@@ -479,6 +479,16 @@ def _split_sql_statements(sql):
     return statements
 
 
+def _translate_postgres_sql(statement):
+    """Translate the small, intentional SQLite SQL subset used by the application."""
+    statement = str(statement).strip()
+    ignore_conflict = bool(re.match(r'INSERT\s+OR\s+IGNORE\s+INTO\b', statement, re.I))
+    if ignore_conflict:
+        statement = re.sub(r'^INSERT\s+OR\s+IGNORE\s+INTO\b', 'INSERT INTO', statement, count=1, flags=re.I)
+        statement = statement.rstrip().rstrip(';') + ' ON CONFLICT DO NOTHING'
+    return statement.replace('?', '%s'), ignore_conflict
+
+
 class _PostgresConnection:
     """Small psycopg2 compatibility layer for the app's existing sqlite-style SQL."""
     is_postgres = True
@@ -516,14 +526,10 @@ class _PostgresConnection:
                 )
             return cur
 
-        ignore_conflict = bool(re.match(r'INSERT\s+OR\s+IGNORE\s+INTO\b', statement, re.I))
-        if ignore_conflict:
-            statement = re.sub(r'^INSERT\s+OR\s+IGNORE\s+INTO\b', 'INSERT INTO', statement, count=1, flags=re.I)
-            statement = statement.rstrip().rstrip(';') + ' ON CONFLICT DO NOTHING'
+        statement, _ignore_conflict = _translate_postgres_sql(statement)
         insert = re.match(r'INSERT\s+INTO\s+([a-z_][a-z0-9_]*)', statement, re.I)
         if insert:
             self._last_insert_table = insert.group(1).lower()
-        statement = statement.replace('?', '%s')
         cur = self._conn.cursor()
         try:
             cur.execute(statement, params if params else None)
