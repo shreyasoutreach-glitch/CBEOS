@@ -128,6 +128,17 @@ class FullWorkflowHTTPTests(unittest.TestCase):
         self.assertIsNotNone(match, f"Unexpected case redirect: {case_path}")
         case_id = int(match.group(1))
 
+        # The buyer-facing recovery workbook must be downloadable only through
+        # the authenticated, tenant-scoped case route.
+        status, report_headers, report_body = self.request(
+            "GET", f"/case/{case_id}/recovery-report.xlsx", cookie=cookie
+        )
+        self.assertEqual(status, 200, report_body[:300])
+        self.assertIn("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                      report_headers.get("Content-Type", ""))
+        self.assertIn(f"cbeos-recovery-case-{case_id}.xlsx",
+                      report_headers.get("Content-Disposition", ""))
+
         status, _, detail = self.request("GET", case_path, cookie=cookie)
         self.assertEqual(status, 200)
         token = self.csrf(detail)
