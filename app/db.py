@@ -567,41 +567,6 @@ class _PostgresConnection:
         self._conn.close()
 
 
-def _install_postgres_tenant_guards(c):
-    """Recreate SQLite tenant guards as PostgreSQL row triggers."""
-    for table, condition in TENANT_RELATION_CHECKS.items():
-        function_name = 'cbeos_guard_' + table
-        c.execute(
-            f"CREATE OR REPLACE FUNCTION public.{function_name}() RETURNS trigger "
-            "LANGUAGE plpgsql SET search_path=pg_catalog,public AS $cbeos$ "
-            f"BEGIN IF ({condition}) THEN RAISE EXCEPTION 'tenant relationship mismatch'; "
-            "END IF; RETURN NEW; END $cbeos$"
-        )
-        c.execute(f'DROP TRIGGER IF EXISTS trg_{table}_tenant_guard ON public.{table}')
-        c.execute(
-            f'CREATE TRIGGER trg_{table}_tenant_guard BEFORE INSERT OR UPDATE ON public.{table} '
-            f'FOR EACH ROW EXECUTE FUNCTION public.{function_name}()'
-        )
-    c.execute(
-        "CREATE OR REPLACE FUNCTION public.cbeos_guard_agent_run_case() RETURNS trigger "
-        "LANGUAGE plpgsql SET search_path=pg_catalog,public AS $cbeos$ "
-        "BEGIN IF NOT EXISTS (SELECT 1 FROM public.cases "
-        "WHERE id=NEW.case_id AND tenant_id=NEW.tenant_id) "
-        "THEN RAISE EXCEPTION 'agent run tenant/case mismatch'; END IF; "
-        "RETURN NEW; END $cbeos$"
-    )
-    for event in ('insert', 'update'):
-        c.execute(f'DROP TRIGGER IF EXISTS agent_runs_tenant_{event} ON public.agent_runs')
-    c.execute(
-        'CREATE TRIGGER agent_runs_tenant_insert BEFORE INSERT ON public.agent_runs '
-        'FOR EACH ROW EXECUTE FUNCTION public.cbeos_guard_agent_run_case()'
-    )
-    c.execute(
-        'CREATE TRIGGER agent_runs_tenant_update BEFORE UPDATE OF tenant_id,case_id ON public.agent_runs '
-        'FOR EACH ROW EXECUTE FUNCTION public.cbeos_guard_agent_run_case()'
-    )
-
-
 def db():
     database_url = (os.getenv('CBAM_DATABASE_URL') or os.getenv('DATABASE_URL') or '').strip()
     mode = os.getenv('CBAM_CUSTOMER_DATA_MODE', 'sandbox').strip().lower()
