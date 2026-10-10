@@ -80,7 +80,7 @@ class ProviderContractTests(unittest.TestCase):
         prompt = sent["messages"][1]["content"]
         self.assertIn("Intake & Scope Agent", prompt)
         self.assertIn("3 candidate facts await review", prompt)
-        self.assertIn("cannot change authoritative state", sent["messages"][0]["content"].lower())
+        self.assertIn("deterministic findings are authoritative and must not be changed", sent["messages"][0]["content"].lower())
 
     def test_invalid_public_http_endpoint_is_blocked_before_network(self):
         os.environ["CBAM_LLM_BASE_URL"] = "http://llm.example.test/v1"
