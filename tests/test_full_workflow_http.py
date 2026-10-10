@@ -186,7 +186,7 @@ class FullWorkflowHTTPTests(unittest.TestCase):
             summary = json.loads(run["summary_json"])
             self.assertEqual(summary["readiness"]["verdict"], "BLOCKED")
             self.assertFalse(summary["llm_enabled"])
-            audit = c.execute("SELECT COUNT(*) FROM audit_log WHERE case_id=? AND action='agent_workflow_completed'", (case_id,)).fetchone()[0]
+            audit = c.execute("SELECT COUNT(*) FROM audit WHERE case_id=? AND action='agent_workflow_completed'", (case_id,)).fetchone()[0]
             self.assertGreaterEqual(audit, 1)
         finally:
             c.close()
