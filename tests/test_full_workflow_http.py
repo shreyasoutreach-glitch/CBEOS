@@ -203,10 +203,11 @@ class FullWorkflowHTTPTests(unittest.TestCase):
                 ("Commercial Exposure Agent", "Verifier Readiness Agent"),
                 ("Verifier Readiness Agent", "Declaration Package QA Agent"),
                 ("Declaration Package QA Agent", "Control Tower Orchestrator"),
-                ("Control Tower Orchestrator", "Human Reviewer"),
             ]
             for edge in required_handoffs:
                 self.assertIn(edge, handoffs, f"Missing ordered handoff: {edge}")
+            self.assertEqual(messages[-1]["message_type"], "summary")
+            self.assertEqual((messages[-1]["from_agent"], messages[-1]["to_agent"]), ("Control Tower Orchestrator", "Human Reviewer"))
             audit = c.execute("SELECT COUNT(*) FROM audit WHERE case_id=? AND action='agent_workflow_completed'", (case_id,)).fetchone()[0]
             self.assertGreaterEqual(audit, 1)
         finally:
