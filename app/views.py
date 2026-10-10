@@ -13,65 +13,78 @@ from . import util
 from .db import FIELD_LABELS
 
 CSS = '''
-:root{--bg:#070b12;--panel:#0e1522;--panel2:#111b2a;--line:#223149;--text:#edf4ff;--muted:#8292a9;--mint:#71e2b5;--amber:#f2c66d;--red:#f27b83;--blue:#80aefc}
-*{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at 20% -10%,#13243b 0,#070b12 42%);color:var(--text);font:14px Inter,ui-sans-serif,system-ui,-apple-system,Segoe UI,sans-serif}
-.shell{display:grid;grid-template-columns:225px 1fr;min-height:100vh}
-.side{border-right:1px solid var(--line);padding:22px 14px;background:#080d16}
-.logo{font-weight:950;font-size:18px;letter-spacing:-.5px;padding:4px 10px 22px}.logo span{color:var(--mint)}
-.nav a{display:block;color:#9bacbf;text-decoration:none;padding:9px 12px;border-radius:9px;margin:2px 0;font-size:13px}
-.nav a:hover,.nav a.active{background:#142238;color:#fff}
-.navgroup{color:#4d5d74;font-size:10px;text-transform:uppercase;letter-spacing:1px;padding:14px 12px 4px}
-.sidefoot{position:fixed;bottom:16px;width:195px;color:#526278;font-size:10.5px}
-.main{padding:28px 34px;max-width:1560px;width:100%}
+:root{color-scheme:light;--bg:#f5f5f7;--panel:#fff;--panel2:#fafafc;--line:#e5e5ea;--text:#1d1d1f;--muted:#6e6e73;--mint:#1677ff;--amber:#9a6700;--red:#c62828;--blue:#2563eb;--shadow:0 8px 30px rgba(0,0,0,.045)}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--text);font:14px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,Helvetica,Arial,sans-serif;-webkit-font-smoothing:antialiased}
+a{color:#06c;text-underline-offset:3px}
+.shell{display:grid;grid-template-columns:248px minmax(0,1fr);min-height:100vh}
+.side{border-right:1px solid var(--line);padding:26px 16px;background:rgba(255,255,255,.82);backdrop-filter:blur(18px)}
+.logo{font-weight:750;font-size:16px;letter-spacing:-.55px;padding:4px 12px 28px;line-height:1.2}.logo span{display:block;color:var(--muted);font-weight:500;font-size:11px;letter-spacing:.15px;margin-top:5px}
+.nav a{display:flex;align-items:center;color:#424245;text-decoration:none;padding:10px 12px;border-radius:10px;margin:3px 0;font-size:13px;transition:background .16s,color .16s}
+.nav a:hover,.nav a.active{background:#eaf2ff;color:#0758c9;font-weight:650}
+.navgroup{color:#86868b;font-size:10px;text-transform:uppercase;letter-spacing:1px;padding:14px 12px 4px}
+.sidefoot{position:fixed;bottom:16px;width:210px;color:#86868b;font-size:10.5px;line-height:1.7}
+.main{padding:38px clamp(20px,4vw,64px);max-width:1600px;width:100%;margin:0 auto}
 .top{display:flex;justify-content:space-between;align-items:flex-start;gap:20px;flex-wrap:wrap}
-.eyebrow{text-transform:uppercase;letter-spacing:1.6px;color:var(--mint);font-size:10px;font-weight:900}
-.title{font-size:29px;line-height:1.08;margin:6px 0 7px;letter-spacing:-1px}
-.sub{color:var(--muted);max-width:800px}
-.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:13px;margin:20px 0}
-.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:13px}
-.grid5{display:grid;grid-template-columns:repeat(5,1fr);gap:13px}
-.two{display:grid;grid-template-columns:1.5fr 1fr;gap:15px}
-.card{background:linear-gradient(180deg,#101a2a,#0c1420);border:1px solid var(--line);border-radius:14px;padding:17px;box-shadow:0 16px 40px #0005}
-.kpi{font-size:26px;font-weight:950;margin-top:6px}
-.label{color:#788aa2;font-size:10.5px;text-transform:uppercase;letter-spacing:.7px}
-.bar{height:7px;background:#1c2a3e;border-radius:9px;overflow:hidden}.fill{height:100%;background:var(--mint)}
+.eyebrow{text-transform:uppercase;letter-spacing:1.35px;color:#1677ff;font-size:10px;font-weight:750}
+.title{font-size:clamp(28px,3vw,42px);line-height:1.08;margin:8px 0 12px;letter-spacing:-1.65px;font-weight:750}
+.sub{color:var(--muted);max-width:780px;font-size:14px;line-height:1.65}
+.grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin:22px 0}
+.grid3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+.grid5{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px}
+.two{display:grid;grid-template-columns:1.5fr 1fr;gap:16px}
+.card{background:var(--panel);border:1px solid rgba(0,0,0,.055);border-radius:18px;padding:21px;box-shadow:var(--shadow)}
+.kpi{font-size:clamp(25px,2.5vw,34px);font-weight:750;letter-spacing:-1px;margin-top:8px}
+.label{color:#86868b;font-size:10px;text-transform:uppercase;letter-spacing:.85px;font-weight:700}
+.bar{height:6px;background:#e9e9eb;border-radius:99px;overflow:hidden}.fill{height:100%;background:#1677ff;border-radius:99px}
 table{width:100%;border-collapse:collapse}
-th{font-size:9.5px;color:#71829a;text-transform:uppercase;letter-spacing:.6px;text-align:left;padding:9px 7px;border-bottom:1px solid var(--line)}
-td{padding:10px 7px;border-bottom:1px solid #1b293c;vertical-align:top;font-size:13px}
-a{color:var(--mint)}
-.pill{display:inline-flex;padding:3px 8px;border-radius:999px;background:#17243a;color:#b8c7da;font-size:10.5px;font-weight:800;white-space:nowrap}
-.pill.good{background:#0d2a20;color:var(--mint)}.pill.warn{background:#302614;color:var(--amber)}.pill.bad{background:#31171b;color:var(--red)}
-.pill.info{background:#132338;color:var(--blue)}
-.btn{display:inline-block;background:var(--mint);color:#06120d;text-decoration:none;border:0;border-radius:8px;padding:9px 12px;font-weight:900;cursor:pointer;font-size:12.5px}
-.btn.secondary{background:#19283d;color:#dbe6f5}.btn.danger{background:#3a1a20;color:#ffb2b7}.btn.small{padding:5px 9px;font-size:11px}
-.actions{display:flex;gap:7px;flex-wrap:wrap}
-.formgrid{display:grid;grid-template-columns:repeat(2,1fr);gap:11px}.formgrid3{display:grid;grid-template-columns:repeat(3,1fr);gap:11px}
-.field{margin-bottom:9px}.field label{display:block;color:#9aabc0;font-size:10.5px;text-transform:uppercase;letter-spacing:.4px}
-.field input,.field select,.field textarea{width:100%;margin-top:5px;background:#09111d;color:#eef5ff;border:1px solid #2a3a51;border-radius:8px;padding:9px}
-.field textarea{min-height:90px}
-.notice,.dangerbox,.successbox,.warnbox{padding:11px 13px;border-radius:10px;margin:11px 0}
-.notice{background:#241e10;border-left:3px solid var(--amber)}.dangerbox{background:#281519;border-left:3px solid var(--red)}
-.successbox{background:#0b2119;border-left:3px solid var(--mint)}.warnbox{background:#241e10;border-left:3px solid var(--amber)}
-.section{margin-top:16px}.small{font-size:11.5px}
-.source{font-family:ui-monospace,monospace;font-size:10.5px;color:#9eb0c7;background:#0a111c;padding:6px;border-radius:7px;white-space:pre-wrap}
-.login{min-height:100vh;display:grid;place-items:center}.login .card{width:400px}
-.footer{margin-top:26px;color:#526278;font-size:10.5px;border-top:1px solid var(--line);padding-top:14px}
-.trace{display:flex;flex-direction:column;gap:2px}
-.trace .node{background:#0d1826;border:1px solid #233149;border-radius:10px;padding:10px 12px;position:relative}
-.trace .arrow{text-align:center;color:#3f5069;font-size:16px;margin:-2px 0}
-.checklist{list-style:none;padding:0;margin:0}
-.checklist li{padding:7px 0;border-bottom:1px solid #17233650;font-size:12.5px;display:flex;gap:9px;align-items:flex-start}
-.tick{width:16px;flex:0 0 16px;font-weight:900}
-.tick.yes{color:var(--mint)}.tick.no{color:var(--red)}
-.tabs{display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap}
-.tabs a{padding:7px 11px;border-radius:8px;background:#111c2c;color:#9bacbf;text-decoration:none;font-size:12px}
-.tabs a.active{background:var(--mint);color:#06120d;font-weight:800}
-.kv{display:grid;grid-template-columns:170px 1fr;gap:6px 10px;font-size:12.5px}
-.kv div:nth-child(odd){color:#8292a9}
-.journey{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin:16px 0}.journey a{display:block;color:var(--text);text-decoration:none}.journey .step{font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--mint);font-weight:900}.journey h3{font-size:14px;margin:8px 0}.journey p{font-size:12px;color:var(--muted);margin:0;line-height:1.5}.sandbox-banner{border:1px solid #594a27;background:#211c12;color:#f2d99b;padding:12px 14px;border-radius:10px;margin:15px 0}.outcome{border:1px solid #28443e;background:linear-gradient(120deg,#10241f,#101a2a)}
-@media(max-width:1080px){.journey{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:620px){.journey{grid-template-columns:1fr}}
-@media(max-width:1080px){.shell{grid-template-columns:1fr}.side{display:none}.main{padding:18px}.grid,.grid3,.grid5,.two,.formgrid,.formgrid3{grid-template-columns:1fr}}
+th{font-size:10px;color:#86868b;text-transform:uppercase;letter-spacing:.65px;text-align:left;padding:12px 9px;border-bottom:1px solid var(--line)}
+td{padding:13px 9px;border-bottom:1px solid #f0f0f2;vertical-align:top;font-size:13px}
+.pill{display:inline-flex;padding:4px 9px;border-radius:99px;background:#f0f0f2;color:#48484a;font-size:10.5px;font-weight:700;white-space:nowrap}
+.pill.good{background:#e8f7ee;color:#17663a}.pill.warn{background:#fff4d6;color:#825600}.pill.bad{background:#fdeaea;color:#a51f1f}.pill.info{background:#eaf2ff;color:#0758c9}
+.btn{display:inline-flex;align-items:center;justify-content:center;background:#1677ff;color:#fff;text-decoration:none;border:0;border-radius:999px;padding:10px 16px;font-weight:650;cursor:pointer;font-size:12.5px;box-shadow:0 2px 5px #1677ff20;transition:transform .15s,background .15s}
+.btn:hover{background:#0866e8;transform:translateY(-1px)}
+.btn.secondary{background:#f0f0f2;color:#1d1d1f;box-shadow:none}.btn.danger{background:#fdeaea;color:#a51f1f}.btn.small{padding:6px 11px;font-size:11px}
+.actions{display:flex;gap:8px;flex-wrap:wrap}
+.formgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.formgrid3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.field{margin-bottom:12px}.field label{display:block;color:#6e6e73;font-size:11px;font-weight:650;margin-bottom:5px}
+.field input,.field select,.field textarea{width:100%;margin-top:3px;background:#fff;color:#1d1d1f;border:1px solid #d2d2d7;border-radius:10px;padding:11px 12px;font:inherit;outline:none;transition:border-color .15s,box-shadow .15s}
+.field input:focus,.field select:focus,.field textarea:focus{border-color:#1677ff;box-shadow:0 0 0 3px #1677ff20}
+.field textarea{min-height:100px}
+.notice,.dangerbox,.successbox,.warnbox{padding:13px 15px;border-radius:12px;margin:12px 0;line-height:1.6}
+.notice{background:#f1f6ff;border:1px solid #d9e7ff;color:#25466e}.dangerbox{background:#fff0f0;border:1px solid #ffd6d6;color:#8f1d1d}
+.successbox{background:#edf9f1;border:1px solid #d3efdc;color:#175c34}.warnbox{background:#fff8e7;border:1px solid #f3e2b2;color:#765300}
+.section{margin-top:18px}.small{font-size:11.5px}.muted{color:var(--muted)}
+.source{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:10.5px;color:#555;background:#f5f5f7;padding:8px;border-radius:8px;white-space:pre-wrap}
+.login{min-height:100vh;display:grid;place-items:center;padding:24px}
+.login .card{width:min(440px,100%);padding:30px}
+.footer{margin-top:34px;color:#86868b;font-size:10.5px;border-top:1px solid var(--line);padding-top:16px;line-height:1.6}
+.trace{display:flex;flex-direction:column;gap:5px}.trace .node{background:#fff;border:1px solid var(--line);border-radius:12px;padding:12px 14px}.trace .arrow{text-align:center;color:#8e8e93;font-size:16px;margin:-2px 0}
+.checklist{list-style:none;padding:0;margin:0}.checklist li{padding:9px 0;border-bottom:1px solid #f0f0f2;font-size:12.5px;display:flex;gap:9px;align-items:flex-start}
+.tick{width:16px;flex:0 0 16px;font-weight:900}.tick.yes{color:#16834a}.tick.no{color:#c62828}
+.tabs{display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap}.tabs a{padding:8px 12px;border-radius:999px;background:#f0f0f2;color:#48484a;text-decoration:none;font-size:12px}.tabs a.active{background:#1677ff;color:#fff;font-weight:700}
+.kv{display:grid;grid-template-columns:170px 1fr;gap:7px 12px;font-size:12.5px}.kv div:nth-child(odd){color:#6e6e73}
+.journey{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin:20px 0}.journey a{display:block;color:var(--text);text-decoration:none}.journey .step{font-size:10px;text-transform:uppercase;letter-spacing:1px;color:#1677ff;font-weight:750}.journey h3{font-size:15px;margin:9px 0 6px;letter-spacing:-.3px}.journey p{font-size:12px;color:var(--muted);margin:0;line-height:1.6}
+.sandbox-banner{border:1px solid #f0dca4;background:#fff8e7;color:#6e4d00;padding:14px 16px;border-radius:14px;margin:18px 0;line-height:1.6}
+.outcome{border:1px solid #dbe7fb;background:linear-gradient(135deg,#f5f9ff,#fff)}
+.login-layout{width:min(1120px,100%);display:grid;grid-template-columns:minmax(0,1.15fr) minmax(340px,.85fr);gap:26px;align-items:stretch}
+.hero-panel{border-radius:26px;padding:clamp(28px,5vw,56px);background:radial-gradient(circle at 85% 15%,#d8e8ff 0,transparent 36%),linear-gradient(145deg,#fff 0%,#f3f7ff 100%);border:1px solid #e2eaf7;box-shadow:0 20px 60px #233e6810;overflow:hidden}
+.hero-panel .title{font-size:clamp(36px,5vw,58px);letter-spacing:-2.4px;max-width:600px;margin-top:15px}
+.hero-panel .sub{font-size:16px;max-width:580px}
+.hero-art{margin:28px 0 24px;background:#fff;border:1px solid #e2eaf7;border-radius:20px;padding:18px;box-shadow:0 10px 32px #173f7310}
+.flow-row{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:7px;align-items:stretch}
+.flow-node{background:#f7f9fc;border:1px solid #e4e9f0;border-radius:12px;padding:11px 8px;text-align:center;min-width:0}
+.flow-node b{display:block;font-size:11px;letter-spacing:-.1px}.flow-node span{display:block;font-size:9.5px;color:#6e6e73;margin-top:4px;line-height:1.4}
+.flow-icon{width:28px;height:28px;display:grid;place-items:center;margin:0 auto 7px;border-radius:9px;background:#eaf2ff;color:#0758c9;font-weight:800;font-size:13px}
+.hero-proof{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-top:18px}
+.proof{padding:13px;border-top:1px solid #dce5f1}.proof strong{display:block;font-size:12px}.proof span{display:block;color:#6e6e73;font-size:10.5px;line-height:1.5;margin-top:4px}
+.login-brand{font-size:12px;font-weight:750;letter-spacing:.1px;color:#1d1d1f}.login-note{font-size:11px;color:#6e6e73;line-height:1.6;margin-top:18px}
+@media(max-width:1080px){.journey{grid-template-columns:repeat(2,minmax(0,1fr))}.shell{grid-template-columns:210px minmax(0,1fr)}.grid5{grid-template-columns:repeat(3,minmax(0,1fr))}.main{padding:28px 24px}}
+@media(max-width:820px){.login-layout{grid-template-columns:1fr}.hero-panel{padding:28px}.login-layout .login-card{max-width:560px;width:100%;margin:0 auto}.shell{grid-template-columns:1fr}.side{position:static;padding:12px 16px;border-right:0;border-bottom:1px solid var(--line)}.logo{padding:4px 8px 10px}.sidefoot{display:none}.nav{display:flex;overflow:auto;gap:4px}.nav a{white-space:nowrap}.main{padding:24px 18px}}
+@media(max-width:620px){.journey,.grid,.grid3,.grid5,.two,.formgrid,.formgrid3{grid-template-columns:1fr}.flow-row{grid-template-columns:repeat(2,minmax(0,1fr))}.hero-proof{grid-template-columns:1fr}.title{font-size:30px}.card{padding:17px}.login{padding:14px}.hero-panel .title{font-size:38px}.login-layout{gap:14px}}
 '''
+
 
 NAV = [
     ('overview', '/', 'Overview'), ('cases', '/cases', 'Cases'), ('agents', '/agents', 'Agent terminal'),
@@ -97,15 +110,54 @@ are not a declaration, legal opinion, or verified submission.</div></main></div>
 
 
 def login_page(error=''):
-    return f'''<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width">
-<title>CBAM Evidence OS · Sign in</title><style>{CSS}</style></head><body><div class="login"><div class="card">
-<div class="eyebrow">Compliance Control Tower</div><div class="title">CBAM Evidence OS</div>
-<p class="sub">Turn fragmented supplier and trade documents into verified, traceable, submission-ready CBAM records.</p>
+    return f'''<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width">
+<title>CBEOS · Evidence operations, made clear</title><meta name="description" content="Organize CBAM evidence, surface missing information, and prepare a traceable human-review workflow.">
+<style>{CSS}</style></head><body><div class="login">
+<div class="login-layout">
+<section class="hero-panel">
+<div class="login-brand">CBEOS <span style="color:#1677ff">/</span> CBAM Evidence OS</div>
+<div class="eyebrow" style="margin-top:34px">Evidence operations workspace</div>
+<h1 class="title">Less chasing.<br>Clearer evidence.</h1>
+<p class="sub">A focused workspace for organizing supplier evidence, finding gaps, and preparing a traceable review trail for CBAM teams.</p>
+<div class="hero-art" aria-label="Evidence workflow illustration">
+<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:14px">
+<div><div class="label">One guided workflow</div><div style="font-size:14px;font-weight:750;margin-top:4px">From documents to review queue</div></div>
+<span class="pill info">Human-led</span>
+</div>
+<div class="flow-row">
+<div class="flow-node"><div class="flow-icon">01</div><b>Collect</b><span>Import case & supplier files</span></div>
+<div class="flow-node"><div class="flow-icon">02</div><b>Connect</b><span>Link facts to source evidence</span></div>
+<div class="flow-node"><div class="flow-icon">03</div><b>Resolve</b><span>Review gaps and conflicts</span></div>
+<div class="flow-node"><div class="flow-icon">04</div><b>Review</b><span>Check readiness and audit trail</span></div>
+</div>
+<svg viewBox="0 0 560 92" role="img" aria-label="Evidence and exception records converge into a human review queue" style="display:block;width:100%;height:auto;margin-top:12px">
+<defs><linearGradient id="cbeosFlow" x1="0" x2="1"><stop offset="0" stop-color="#8ab9ff"/><stop offset="1" stop-color="#1677ff"/></linearGradient></defs>
+<path d="M70 8 V27 Q70 37 82 37 H270 Q280 37 280 49 V61 M210 8 V23 Q210 37 220 37 M350 8 V23 Q350 37 340 37 M490 8 V27 Q490 37 478 37 H290" fill="none" stroke="url(#cbeosFlow)" stroke-width="2.5" stroke-linecap="round"/>
+<circle cx="280" cy="61" r="5" fill="#1677ff"/><path d="M280 66 V76" stroke="#1677ff" stroke-width="2.5" stroke-linecap="round"/>
+<rect x="193" y="76" width="174" height="15" rx="7.5" fill="#eaf2ff"/><text x="280" y="86.5" text-anchor="middle" font-size="9.5" font-family="-apple-system,BlinkMacSystemFont,Arial" fill="#0758c9" font-weight="700">HUMAN REVIEW · NOT AUTO-APPROVAL</text>
+</svg>
+</div>
+<div class="hero-proof">
+<div class="proof"><strong>Traceable by design</strong><span>Candidate facts retain document links and source context where extraction supports it.</span></div>
+<div class="proof"><strong>Exceptions first</strong><span>Focus the team on missing evidence, conflicts, and next actions.</span></div>
+<div class="proof"><strong>Humans stay in control</strong><span>Agents triage. They do not certify compliance or submit declarations.</span></div>
+</div>
+<div class="notice" style="margin-top:24px"><b>Sandbox boundary.</b> This build is for synthetic-data evaluation. Regulatory reconciliation is incomplete; do not use it for live filing, liability decisions, or confidential customer documents.</div>
+</section>
+<section class="login">
+<div class="card login-card">
+<div class="eyebrow">Welcome back</div><h2 style="font-size:28px;letter-spacing:-1px;margin:8px 0 4px">Sign in to CBEOS</h2>
+<p class="sub" style="font-size:13px;margin-bottom:24px">Open your workspace and continue reviewing the evidence queue.</p>
 {f'<div class="dangerbox">{util.esc(error)}</div>' if error else ''}
-<form method="post" action="/login"><div class="field"><label>Email</label><input name="email" type="email" required></div>
-<div class="field"><label>Password</label><input name="password" type="password" required></div>
-<button class="btn" type="submit">Sign in</button></form>
-<p class="muted small">Local demo defaults: admin@example.com / change-me-now. Set CBAM_ADMIN_PASSWORD before any real deployment.</p>
+<form method="post" action="/login">
+<div class="field"><label for="email">Work email</label><input id="email" name="email" type="email" autocomplete="username" placeholder="you@company.com" required></div>
+<div class="field"><label for="password">Password</label><input id="password" name="password" type="password" autocomplete="current-password" placeholder="Enter your password" required></div>
+<button class="btn" type="submit" style="width:100%;padding:12px">Sign in <span aria-hidden="true" style="margin-left:8px">→</span></button>
+</form>
+<p class="login-note">Access is configured by the workspace administrator. If you do not have credentials, ask your administrator to provision an account.</p>
+<div style="border-top:1px solid #e5e5ea;margin-top:22px;padding-top:17px"><div class="label">What happens after sign-in?</div><p class="muted small" style="line-height:1.7;margin-bottom:0">Start a case → add supplier and installation records → upload synthetic evidence → review exceptions → run the coordinated agent triage → inspect the audit and readiness results.</p></div>
+</div>
+</section>
 </div></div></body></html>'''
 
 
