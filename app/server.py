@@ -667,7 +667,7 @@ class Handler(BaseHTTPRequestHandler):
                         return self.send('Not found', 404)
                     return self.send(views.import_line_detail(c, a, line, self.session_csrf()))
 
-                report_match = re.match(r'^/case/(\\d+)/recovery-report\\.xlsx$', path)
+                report_match = re.match(r'^/case/(\d+)/recovery-report\.xlsx$', path)
                 if report_match:
                     cid = int(report_match.group(1))
                     report = recovery_report.build_recovery_workbook(c, a['tenant_id'], cid)
