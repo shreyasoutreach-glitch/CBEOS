@@ -4,6 +4,7 @@ that could contain user input is passed through util.esc(). Every
 state-changing form carries the session CSRF token.
 """
 import json
+import os
 
 from . import db as dbm
 from . import engine
@@ -427,6 +428,7 @@ def case_detail(c, actor, case, csrf):
 {"".join(f'<option value="{l["id"]}">#{l["id"]} {util.esc(l["cn_code"])}</option>' for l in lines)}</select></div>
 <div class="field"><label>Applies to installation (optional)</label><select name="installation_id"><option value="">(none)</option>{installation_opts}</select></div>
 </div><div class="field"><label>Source file (.pdf / .xlsx / .csv / .txt)</label><input type="file" name="file" required></div>
+{('<div class="warnbox small"><label><input type="checkbox" name="synthetic_data_confirmed" value="1" required> I confirm this is synthetic/test data only, with no real personal, customer, supplier or confidential information.</label></div>' if os.getenv("CBAM_CUSTOMER_DATA_MODE", "sandbox").strip().lower() != "production" else "")}
 <button class="btn">Upload + extract candidates</button></form>'''
     body += '<table class="section"><tr><th>File</th><th>Type</th><th>Fingerprint</th><th>Status</th><th></th></tr>'
     for d in docs[:30]:
