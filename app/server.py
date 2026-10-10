@@ -25,6 +25,7 @@ from . import util
 from . import views
 from . import ops_readiness
 from . import recovery_report
+from . import storage
 
 HOST = os.getenv('CBAM_HOST', '127.0.0.1')
 PORT = int(os.getenv('CBAM_PORT') or os.getenv('PORT', '8000'))
@@ -156,12 +157,11 @@ def do_upload(h):
         text, meta = extraction.extract_file(fn, data)
         doc_type_guess, conf = extraction.classify(fn, text)
         stored = f'{sha}{os.path.splitext(fn)[1].lower()}'
-        path = os.path.join(dbm.UP, stored)
-        stored_path = path
-        with open(path, 'wb') as fh:
-            fh.write(data)
         t = util.now()
         mime = mimetypes.guess_type(fn)[0] or 'application/octet-stream'
+        storage_backend = storage.get_storage()
+        storage_backend.put(stored, data, mime)
+        stored_path = stored
         meta['classification'] = {'suggested_type': doc_type_guess, 'confidence': conf}
         c.execute('INSERT INTO documents(tenant_id,case_id,import_line_id,supplier_id,installation_id,filename,'
                    'stored_name,mime,doc_type,size_bytes,sha256,uploaded,uploaded_by,extracted_text,meta_json) '
@@ -188,9 +188,9 @@ def do_upload(h):
         if c is not None:
             try: c.rollback(); c.close()
             except Exception: pass
-        if stored_path and os.path.exists(stored_path):
-            try: os.remove(stored_path)
-            except OSError: pass
+        if stored_path:
+            try: storage.get_storage().delete(stored_path)
+            except Exception: pass
         return h.send('Upload rejected. Check the file format, size, and case associations.', 400)
     except Exception:
         import logging
@@ -213,16 +213,15 @@ def do_download(h, did):
     c.close()
     if not d:
         return h.send('Not found', 404)
-    # stored_name is always sha256+ext (never derived from client-controlled path input)
-    path = os.path.join(dbm.UP, d['stored_name'])
-    safe_root = os.path.realpath(dbm.UP)
-    real_path = os.path.realpath(path)
-    if not real_path.startswith(safe_root + os.sep):
-        return h.send('Invalid path', 400)
-    if not os.path.exists(real_path):
+    # stored_name is a server-generated content hash + extension, never a client path.
+    try:
+        data = storage.get_storage().get(d['stored_name'])
+    except FileNotFoundError:
         return h.send('File missing from storage', 404)
-    with open(real_path, 'rb') as fh:
-        data = fh.read()
+    except Exception:
+        import logging
+        logging.getLogger('cbeos.storage').exception('Document retrieval failed')
+        return h.send('Document storage unavailable.', 503)
     h.send_response(200)
     h.send_header('Content-Type', d['mime'] or 'application/octet-stream')
     h.send_header('Content-Disposition', f'attachment; filename="{re.sub(r"[^A-Za-z0-9._-]", "_", d["filename"])}"')
