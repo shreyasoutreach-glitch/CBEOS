@@ -11,7 +11,7 @@ This document distinguishes code-level integration from a live, credentialed con
 | Agent orchestration | Deterministic ordered workflow with persisted handoffs, specialist findings, summary and hash-chain verification | Works in local/synthetic tests | Agents recommend; they do not verify evidence, close exceptions, calculate authoritative liability, approve or submit declarations |
 | OpenAI-compatible model endpoint | Optional `/chat/completions` commentary adapter using `urllib`; accepts a configurable base URL | **Not connected until deployment has a valid key + model and a live smoke test passes** | Commentary only; provider output cannot override deterministic state |
 | Regulatory retrieval | Local curated index + manifest hash check + source-page excerpts | Local retrieval only when the approved index exists and hash matches | Hash integrity is not legal correctness; row-level legal reconciliation remains unverified |
-| Supplier messaging | Supplier request states, due dates and suggested follow-up actions | **Not connected** | No emails/messages sent; no delivery claims |
+| Supplier messaging | Human-triggered Resend API adapter; requires `RESEND_API_KEY` and `CBAM_EMAIL_FROM` | **Not live-tested until credentials are configured** | Only an authenticated human Send action invokes it. `SENT` means accepted by provider, not delivered; delivery webhooks are not implemented. Failed/unconfigured sends remain drafts. |
 | EU CBAM Registry | No filing/write integration | **Not connected** | No filing, submission or registry writes |
 | Database | SQLite-backed local application database | Local/single-instance prototype | Do not assume persistent storage or multi-replica safety in an unconfigured Render service |
 | Document extraction | Local PDF/XLSX/text extraction and candidate-fact creation | Local code path; format-specific extraction still needs broad evaluation | Extracted facts remain candidates until human review |
@@ -25,7 +25,11 @@ Supported environment variables:
 - `CBAM_LLM_MODEL`: exact model identifier supported by the provider.
 - `CBAM_LLM_BASE_URL`: optional base URL, defaults to `https://api.openai.com/v1`. HTTPS is required for remote hosts; plain HTTP is permitted only for loopback development.
 
-The server must never log or return the API key. A configured key/model is not proof of connectivity. Validate the exact model, permissions, rate limits, timeout behaviour, structured JSON response support and provider terms using synthetic data. The adapter degrades to deterministic rules if the provider fails. The integration-status endpoint reports configuration only, not successful live connectivity.
+The server must never log or return the API key. A configured key/model is not proof of connectivity. Validate the exact model, permissions, rate limits, timeout behaviour, structured JSON response support and provider terms using synthetic data. The adapter degrades to deterministic rules if the model provider fails. The integration-status endpoint reports configuration only, not successful live connectivity.
+
+## Supplier email configuration
+
+Resend is supported for the explicit supplier-request Send action. Set `RESEND_API_KEY` and `CBAM_EMAIL_FROM` in Render's secret/environment settings. A valid supplier contact email is required. The provider adapter calls the fixed HTTPS endpoint `https://api.resend.com/emails`; it does not accept an arbitrary email API URL. Test with an internal test recipient before any real supplier outreach. A successful API response means accepted by Resend, not confirmed delivered. Delivery webhooks are not implemented, so do not claim delivery.
 
 ## Integration status endpoint
 
