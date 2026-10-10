@@ -22,6 +22,8 @@ os.environ["CBAM_ADMIN_PASSWORD"] = "full-flow-test-password"
 os.environ.pop("CBAM_LLM_API_KEY", None)
 os.environ.pop("CBAM_LLM_MODEL", None)
 os.environ.pop("CBAM_LLM_BASE_URL", None)
+os.environ.pop("RESEND_API_KEY", None)
+os.environ.pop("CBAM_EMAIL_FROM", None)
 
 from app import db as dbm
 from app.server import Handler
@@ -91,6 +93,17 @@ class FullWorkflowHTTPTests(unittest.TestCase):
         )
         self.assertEqual(status, 303, body)
         return headers["Set-Cookie"].split(";", 1)[0]
+
+    def test_admin_integration_probe_is_safe_and_does_not_send_email(self):
+        cookie = self.login()
+        status, _, body = self.request("GET", "/api/integrations/probe", cookie=cookie)
+        self.assertEqual(status, 200, body)
+        payload = json.loads(body)
+        self.assertIn("configuration", payload)
+        self.assertEqual(payload["live_probe"]["model_provider"]["status"], "not_configured")
+        self.assertEqual(payload["live_probe"]["supplier_messaging"]["status"], "not_configured")
+        self.assertNotIn("test-password", body)
+        self.assertNotIn("api_key", body.lower())
 
     def test_upload_to_ordered_agent_handoff_is_visible_and_tenant_scoped(self):
         cookie = self.login()
