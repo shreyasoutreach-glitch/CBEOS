@@ -578,7 +578,7 @@ def db():
     if backend != 'sqlite':
         raise RuntimeError('Unsupported CBAM_DB_BACKEND; refusing to start.')
     if mode == 'production':
-        raise RuntimeError('Production mode requires CBAM_DB_BACKEND=postgres and CBAM_DATABASE_URL; refusing to use SQLite.')
+        raise RuntimeError('Production mode requires CBAM_DATABASE_URL and CBAM_DB_BACKEND=postgres; refusing to use SQLite.')
     c = sqlite3.connect(DB_PATH)
     c.row_factory = sqlite3.Row
     c.execute('PRAGMA foreign_keys=ON')
