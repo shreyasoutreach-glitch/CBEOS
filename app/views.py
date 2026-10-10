@@ -10,6 +10,7 @@ from . import engine
 from . import agents
 from . import supplier_ops
 from . import util
+from . import ops_readiness
 from .db import FIELD_LABELS
 
 CSS = '''
@@ -832,6 +833,15 @@ def settings_view(c, actor, csrf, message=''):
 <div class="field"><label>Role</label><select name="role"><option value="viewer">Viewer</option><option value="reviewer">Reviewer</option>
 <option value="manager">Manager</option><option value="admin">Admin</option></select></div></div>
 <button class="btn secondary small">+ Add user</button></form></div>'''
+    gate = ops_readiness.customer_data_snapshot()
+    blocker_items = ''.join(f'<li>{util.esc(item.replace("_", " "))}</li>' for item in gate['blockers'])
+    body += f'''<div class="card section"><div class="eyebrow">Operational controls</div><h2>Production safety gate</h2>
+<p><span class="pill warn">SANDBOX ONLY</span></p>
+<p class="small muted">CBEOS is explicitly configured for synthetic-data evaluation. This panel shows the real implementation gaps that must be closed before confidential customer documents are allowed.</p>
+<div class="dangerbox"><b>Production blocked.</b> Database and object-storage adapters are not implemented; recovery, security, retention, regulatory and customer-data approvals remain separate release gates.</div>
+<details><summary class="small">Current production blockers ({len(gate['blockers'])})</summary><ul class="small">{blocker_items}</ul></details>
+<div class="actions section"><a class="btn secondary small" href="/api/integrations">View integration configuration</a><a class="btn small" href="/api/integrations/probe">Run live provider probe</a></div>
+<p class="small muted">The provider probe performs bounded authenticated GET checks only. It sends no email and does not prove email delivery or model generation.</p></div>'''
     body += '''<div class="card section"><h2>Data retention &amp; deletion</h2><p class="small muted">Policy-defined for this build (not yet code-enforced):
 evidence documents and audit history are retained for the statutory CBAM record-keeping period. A tenant-initiated deletion request is handled
 manually today and is logged as a REQUIRES EXTERNAL INTEGRATION item pending a retention-and-deletion engine (see README).</p></div>'''
