@@ -24,6 +24,7 @@ from . import supplier_ops
 from . import util
 from . import views
 from . import ops_readiness
+from . import recovery_report
 
 HOST = os.getenv('CBAM_HOST', '127.0.0.1')
 PORT = int(os.getenv('CBAM_PORT') or os.getenv('PORT', '8000'))
@@ -665,6 +666,24 @@ class Handler(BaseHTTPRequestHandler):
                     if not line:
                         return self.send('Not found', 404)
                     return self.send(views.import_line_detail(c, a, line, self.session_csrf()))
+
+                report_match = re.match(r'^/case/(\\d+)/recovery-report\\.xlsx$', path)
+                if report_match:
+                    cid = int(report_match.group(1))
+                    report = recovery_report.build_recovery_workbook(c, a['tenant_id'], cid)
+                    if report is None:
+                        return self.send('Not found', 404)
+                    self.send_response(200)
+                    self.send_header('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+                    self.send_header('Content-Disposition', f'attachment; filename="cbeos-recovery-case-{cid}.xlsx"')
+                    self.send_header('Content-Length', str(len(report)))
+                    self.send_header('X-Content-Type-Options', 'nosniff')
+                    self.send_header('X-Frame-Options', 'DENY')
+                    self.send_header('Referrer-Policy', 'no-referrer')
+                    self.send_header('Cache-Control', 'no-store')
+                    self.end_headers()
+                    self.wfile.write(report)
+                    return
 
                 m = re.match(r'^/case/(\d+)(/pack|/declaration)?$', path)
                 if m:
