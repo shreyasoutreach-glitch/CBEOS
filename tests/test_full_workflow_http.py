@@ -161,6 +161,14 @@ class FullWorkflowHTTPTests(unittest.TestCase):
             "synthetic-supplier-evidence.txt",
             fixture,
         )
+        status, _, response = self.request("POST", "/upload", body, cookie, content_type)
+        self.assertEqual(status, 400, response)
+        body, content_type = self.multipart(
+            {"case_id": case_id, "csrf": token, "doc_type": "supplier_evidence",
+             "synthetic_data_confirmed": "1"},
+            "synthetic-supplier-evidence.txt",
+            fixture,
+        )
         status, headers, response = self.request("POST", "/upload", body, cookie, content_type)
         self.assertEqual(status, 303, response)
         self.assertEqual(headers.get("Location"), case_path)
@@ -184,7 +192,8 @@ class FullWorkflowHTTPTests(unittest.TestCase):
         status, _, detail = self.request("GET", case_path, cookie=cookie)
         token = self.csrf(detail)
         bad_body, bad_type = self.multipart(
-            {"case_id": case_id, "csrf": token, "doc_type": "supplier_evidence"},
+            {"case_id": case_id, "csrf": token, "doc_type": "supplier_evidence",
+             "synthetic_data_confirmed": "1"},
             "not-a-document.exe",
             b"MZ\x00synthetic-invalid-file",
         )
