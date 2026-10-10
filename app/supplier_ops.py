@@ -12,6 +12,11 @@ request lifecycle, deadlines, escalation and quality scoring are fully real.
 """
 from . import util
 from .engine import audit, missing_requirements
+import json
+import os
+import re
+import urllib.error
+import urllib.request
 
 REQUEST_STATES = ['DRAFT', 'SENT', 'WAITING', 'OVERDUE', 'RESPONDED', 'VALIDATED', 'CLOSED']
 
@@ -62,27 +67,69 @@ def generate_all_supplier_requests(c, tid, cid, uid, deadline=''):
 
 
 def notify_supplier(request_row):
-    """Pluggable delivery boundary. In this build it only marks the request as
-    sent and records that no real transport ran -- wire an SMTP/API client
-    here for production (see README)."""
-    return {'delivered': False, 'transport': 'none (requires external email integration)'}
+    """Send only after an authenticated human invokes the Send action.
+
+    Resend's API acceptance is recorded as accepted-by-provider, not as confirmed
+    delivery. Delivery confirmation requires a separately configured webhook.
+    """
+    api_key = os.getenv('RESEND_API_KEY', '').strip()
+    sender = os.getenv('CBAM_EMAIL_FROM', '').strip()
+    recipient = str(request_row['supplier_email'] or '').strip()
+    if not api_key or not sender:
+        return {'accepted': False, 'status': 'not_configured', 'transport': 'resend'}
+    if not recipient or not re.fullmatch(r"[^\s@]+@[^\s@]+\.[^\s@]+", recipient):
+        return {'accepted': False, 'status': 'recipient_missing_or_invalid', 'transport': 'resend'}
+    payload = {
+        'from': sender,
+        'to': [recipient],
+        'subject': str(request_row['title'] or 'CBAM evidence request')[:200],
+        'text': str(request_row['draft'] or '')[:12000],
+    }
+    req = urllib.request.Request(
+        'https://api.resend.com/emails',
+        data=json.dumps(payload).encode('utf-8'),
+        headers={'Authorization': 'Bearer ' + api_key, 'Content-Type': 'application/json'},
+        method='POST',
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=10) as response:
+            status_code = int(getattr(response, 'status', 0))
+            raw = response.read(100_000).decode('utf-8')
+        if status_code not in (200, 201):
+            return {'accepted': False, 'status': 'provider_rejected', 'transport': 'resend'}
+        response_data = json.loads(raw)
+        message_id = str(response_data.get('id', '')).strip()
+        if not message_id:
+            return {'accepted': False, 'status': 'provider_response_missing_id', 'transport': 'resend'}
+        return {'accepted': True, 'status': 'accepted_by_provider', 'transport': 'resend', 'message_id': message_id}
+    except (urllib.error.URLError, TimeoutError, OSError, ValueError, TypeError):
+        return {'accepted': False, 'status': 'provider_error', 'transport': 'resend'}
 
 
 def send_request(c, tid, req_id, uid):
-    r = c.execute('SELECT * FROM supplier_requests WHERE id=? AND tenant_id=?', (req_id, tid)).fetchone()
+    r = c.execute(
+        'SELECT sr.*, s.contact_email AS supplier_email FROM supplier_requests sr '
+        'JOIN suppliers s ON s.id=sr.supplier_id AND s.tenant_id=sr.tenant_id '
+        'WHERE sr.id=? AND sr.tenant_id=?',
+        (req_id, tid),
+    ).fetchone()
     if not r:
         return False, 'Not found'
     delivery = notify_supplier(r)
-    if not delivery.get('delivered'):
-        # A workflow state must never imply an external side effect that did not happen.
-        # Keep the draft editable and auditable until a real transport confirms delivery.
-        audit(c, tid, r['case_id'], uid, 'supplier_request_delivery_not_configured',
-              f"request={req_id}; transport={delivery.get('transport', 'unknown')}")
-        return False, 'No supplier email transport is configured; the request remains a draft and was not sent.'
+    if not delivery.get('accepted'):
+        state = delivery.get('status', 'provider_error')
+        action = 'supplier_request_delivery_not_configured' if state == 'not_configured' else 'supplier_request_delivery_failed'
+        audit(c, tid, r['case_id'], uid, action, f"request={req_id}; transport={delivery.get('transport', 'unknown')}; status={state}")
+        if state == 'not_configured':
+            return False, 'Email transport is not configured; the request remains a draft and was not sent.'
+        if state == 'recipient_missing_or_invalid':
+            return False, 'Supplier email is missing or invalid; the request remains a draft.'
+        return False, 'Email provider did not accept the request; it remains a draft. Check provider configuration and retry.'
     c.execute("UPDATE supplier_requests SET status='SENT',sent_at=?,updated=? WHERE id=? AND tenant_id=?",
               (util.now(), util.now(), req_id, tid))
-    audit(c, tid, r['case_id'], uid, 'supplier_request_sent', str(req_id))
-    return True, ''
+    audit(c, tid, r['case_id'], uid, 'supplier_request_accepted_by_provider',
+          f"request={req_id}; transport={delivery.get('transport', 'unknown')}; message_id={delivery.get('message_id', '')}")
+    return True, 'Accepted by email provider; delivery confirmation is not yet available.'
 
 
 def mark_responded(c, tid, req_id, uid, validated=False):
