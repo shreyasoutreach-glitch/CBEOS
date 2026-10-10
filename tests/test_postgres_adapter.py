@@ -29,6 +29,32 @@ class PostgresAdapterTests(unittest.TestCase):
             with self.assertRaisesRegex(RuntimeError, 'requires CBAM_DATABASE_URL'):
                 db()
 
+    def test_database_url_does_not_switch_backend_without_explicit_postgres_backend(self):
+        env = {
+            'CBAM_CUSTOMER_DATA_MODE': 'sandbox',
+            'CBAM_DB_BACKEND': 'sqlite',
+            'CBAM_DATABASE_URL': '',
+            'DATABASE_URL': 'postgresql://not-used',
+        }
+        with patch.dict(os.environ, env):
+            with patch('app.db.DB_PATH', ':memory:'):
+                connection = db()
+                try:
+                    self.assertIsInstance(connection, __import__('sqlite3').Connection)
+                finally:
+                    connection.close()
+
+    def test_production_rejects_sqlite_even_if_database_url_exists(self):
+        env = {
+            'CBAM_CUSTOMER_DATA_MODE': 'production',
+            'CBAM_DB_BACKEND': 'sqlite',
+            'CBAM_DATABASE_URL': 'postgresql://not-used',
+            'DATABASE_URL': 'postgresql://not-used',
+        }
+        with patch.dict(os.environ, env):
+            with self.assertRaisesRegex(RuntimeError, 'requires CBAM_DB_BACKEND=postgres'):
+                db()
+
     def test_regular_placeholders_are_translated(self):
         sql, ignored = _translate_postgres_sql("SELECT id FROM demo WHERE tenant_id=? AND status=?")
         self.assertFalse(ignored)
