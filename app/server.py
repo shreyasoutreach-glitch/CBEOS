@@ -113,6 +113,8 @@ def do_upload(h):
             return h.send('CSRF validation failed', 403)
         if not require_perm(a, 'upload'):
             return h.send('Forbidden: your role cannot upload documents', 403)
+        if os.getenv('CBAM_CUSTOMER_DATA_MODE', 'sandbox').strip().lower() != 'production' and fv(f, 'synthetic_data_confirmed') != '1':
+            return h.send('Sandbox mode requires confirmation that this is synthetic test data.', 400)
         cid = int(fv(f, 'case_id'))
         tid = a['tenant_id']
         c = dbm.db()
