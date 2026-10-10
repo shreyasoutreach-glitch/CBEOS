@@ -673,6 +673,8 @@ class Handler(BaseHTTPRequestHandler):
                     report = recovery_report.build_recovery_workbook(c, a['tenant_id'], cid)
                     if report is None:
                         return self.send('Not found', 404)
+                    engine.audit(c, a['tenant_id'], cid, a['user_id'], 'recovery_workbook_exported', f'case_id={cid}; workbook_version=1')
+                    c.commit()
                     self.send_response(200)
                     self.send_header('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
                     self.send_header('Content-Disposition', f'attachment; filename="cbeos-recovery-case-{cid}.xlsx"')
