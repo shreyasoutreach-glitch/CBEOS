@@ -11,11 +11,21 @@ SUITES = [
     'test_security.py',
     'test_regulatory_import.py',
     'test_agents.py',
+    'test_provider_contract.py',
     'test_demo_render_regression.py',
+    'test_dashboard_http_journey.py',
+    'test_full_workflow_http.py',
+    'test_render_runtime.py',
+    'test_supplier_delivery.py',
     'test_legal_data_pipeline.py',
     'test_eurlex_table_extraction.py',
     'test_source_governance.py',
     'test_db_operations.py',
+    'test_ops_readiness.py',
+    'test_integration_probes.py',
+    'test_recovery_report.py',
+    'test_storage.py',
+    'test_postgres_adapter.py',
 ]
 results = []
 for suite in SUITES:

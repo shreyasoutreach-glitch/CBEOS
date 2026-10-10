@@ -17,14 +17,18 @@ from urllib.parse import parse_qs, urlparse
 from . import db as dbm
 from . import engine
 from . import agents
+from . import integrations
 from . import extraction
 from . import security
 from . import supplier_ops
 from . import util
 from . import views
+from . import ops_readiness
+from . import recovery_report
+from . import storage
 
 HOST = os.getenv('CBAM_HOST', '127.0.0.1')
-PORT = int(os.getenv('CBAM_PORT', '8000'))
+PORT = int(os.getenv('CBAM_PORT') or os.getenv('PORT', '8000'))
 
 
 def fv(f, k, d=''):
@@ -110,6 +114,8 @@ def do_upload(h):
             return h.send('CSRF validation failed', 403)
         if not require_perm(a, 'upload'):
             return h.send('Forbidden: your role cannot upload documents', 403)
+        if os.getenv('CBAM_CUSTOMER_DATA_MODE', 'sandbox').strip().lower() != 'production' and fv(f, 'synthetic_data_confirmed') != '1':
+            return h.send('Sandbox mode requires confirmation that this is synthetic test data.', 400)
         cid = int(fv(f, 'case_id'))
         tid = a['tenant_id']
         c = dbm.db()
@@ -151,12 +157,11 @@ def do_upload(h):
         text, meta = extraction.extract_file(fn, data)
         doc_type_guess, conf = extraction.classify(fn, text)
         stored = f'{sha}{os.path.splitext(fn)[1].lower()}'
-        path = os.path.join(dbm.UP, stored)
-        stored_path = path
-        with open(path, 'wb') as fh:
-            fh.write(data)
         t = util.now()
         mime = mimetypes.guess_type(fn)[0] or 'application/octet-stream'
+        storage_backend = storage.get_storage()
+        storage_backend.put(stored, data, mime)
+        stored_path = stored
         meta['classification'] = {'suggested_type': doc_type_guess, 'confidence': conf}
         c.execute('INSERT INTO documents(tenant_id,case_id,import_line_id,supplier_id,installation_id,filename,'
                    'stored_name,mime,doc_type,size_bytes,sha256,uploaded,uploaded_by,extracted_text,meta_json) '
@@ -183,9 +188,9 @@ def do_upload(h):
         if c is not None:
             try: c.rollback(); c.close()
             except Exception: pass
-        if stored_path and os.path.exists(stored_path):
-            try: os.remove(stored_path)
-            except OSError: pass
+        if stored_path:
+            try: storage.get_storage().delete(stored_path)
+            except Exception: pass
         return h.send('Upload rejected. Check the file format, size, and case associations.', 400)
     except Exception:
         import logging
@@ -208,16 +213,15 @@ def do_download(h, did):
     c.close()
     if not d:
         return h.send('Not found', 404)
-    # stored_name is always sha256+ext (never derived from client-controlled path input)
-    path = os.path.join(dbm.UP, d['stored_name'])
-    safe_root = os.path.realpath(dbm.UP)
-    real_path = os.path.realpath(path)
-    if not real_path.startswith(safe_root + os.sep):
-        return h.send('Invalid path', 400)
-    if not os.path.exists(real_path):
+    # stored_name is a server-generated content hash + extension, never a client path.
+    try:
+        data = storage.get_storage().get(d['stored_name'])
+    except FileNotFoundError:
         return h.send('File missing from storage', 404)
-    with open(real_path, 'rb') as fh:
-        data = fh.read()
+    except Exception:
+        import logging
+        logging.getLogger('cbeos.storage').exception('Document retrieval failed')
+        return h.send('Document storage unavailable.', 503)
     h.send_response(200)
     h.send_header('Content-Type', d['mime'] or 'application/octet-stream')
     h.send_header('Content-Disposition', f'attachment; filename="{re.sub(r"[^A-Za-z0-9._-]", "_", d["filename"])}"')
@@ -385,10 +389,20 @@ def handle_post(h, path):
             if not require_perm(a, 'manage_suppliers'):
                 return h.send('Forbidden', 403)
             rid = int(m.group(1))
-            supplier_ops.send_request(c, tid, rid, uid)
-            r = c.execute('SELECT supplier_id FROM supplier_requests WHERE id=?', (rid,)).fetchone()
+            sent, message = supplier_ops.send_request(c, tid, rid, uid)
+            r = c.execute('SELECT supplier_id FROM supplier_requests WHERE id=? AND tenant_id=?', (rid, tid)).fetchone()
             c.commit()
-            return h.redirect(f'/supplier/{r["supplier_id"]}')
+            if not r:
+                return h.send('Supplier request not found', 404)
+            # Show the provider outcome explicitly. A redirect alone hid failures and
+            # could make an unconfigured transport look like a successful send.
+            status = 200 if sent else 409
+            return h.send(
+                '<!doctype html><html><head><meta charset="utf-8"><title>Supplier request status</title></head>'
+                '<body><main><h1>Supplier request status</h1><p>' + util.esc(message) +
+                '</p><p><a href="/supplier/' + str(r["supplier_id"]) + '">Return to supplier</a></p></main></body></html>',
+                status,
+            )
 
         m = re.match(r'^/supplier_request/(\d+)/respond$', path)
         if m:
@@ -559,6 +573,9 @@ class Handler(BaseHTTPRequestHandler):
                     present = {row['name'] for row in probe.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()}
                     if not required.issubset(present):
                         raise RuntimeError('Required schema is missing')
+                    blockers = ops_readiness.production_blockers()
+                    if os.getenv('CBAM_CUSTOMER_DATA_MODE', 'sandbox').strip().lower() == 'production' and blockers:
+                        return self.send(json.dumps({'ready': False, 'mode': 'production', 'blockers': blockers}), 503, ctype='application/json')
                     return self.send(json.dumps({'ready': True}), ctype='application/json')
                 except Exception:
                     import logging
@@ -582,6 +599,18 @@ class Handler(BaseHTTPRequestHandler):
                 return
             c = dbm.db()
             try:
+                if path == '/api/integrations/probe':
+                    if not require_perm(a, 'manage_users'):
+                        return self.send('Forbidden', 403)
+                    # This is an explicit admin action. It performs bounded GET
+                    # probes only: no email is sent and no provider payload is returned.
+                    result = {
+                        'configuration': integrations.status_snapshot(),
+                        'live_probe': integrations.probe_external_integrations(timeout=6.0),
+                    }
+                    return self.send(json.dumps(result, ensure_ascii=False), ctype='application/json')
+                if path == '/api/integrations':
+                    return self.send(json.dumps(integrations.status_snapshot(), ensure_ascii=False), ctype='application/json')
                 if path == '/':
                     return self.send(views.dashboard(c, a))
                 if path == '/cases':
@@ -638,6 +667,26 @@ class Handler(BaseHTTPRequestHandler):
                     if not line:
                         return self.send('Not found', 404)
                     return self.send(views.import_line_detail(c, a, line, self.session_csrf()))
+
+                report_match = re.match(r'^/case/(\d+)/recovery-report\.xlsx$', path)
+                if report_match:
+                    cid = int(report_match.group(1))
+                    report = recovery_report.build_recovery_workbook(c, a['tenant_id'], cid)
+                    if report is None:
+                        return self.send('Not found', 404)
+                    engine.audit(c, a['tenant_id'], cid, a['user_id'], 'recovery_workbook_exported', f'case_id={cid}; workbook_version=1')
+                    c.commit()
+                    self.send_response(200)
+                    self.send_header('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+                    self.send_header('Content-Disposition', f'attachment; filename="cbeos-recovery-case-{cid}.xlsx"')
+                    self.send_header('Content-Length', str(len(report)))
+                    self.send_header('X-Content-Type-Options', 'nosniff')
+                    self.send_header('X-Frame-Options', 'DENY')
+                    self.send_header('Referrer-Policy', 'no-referrer')
+                    self.send_header('Cache-Control', 'no-store')
+                    self.end_headers()
+                    self.wfile.write(report)
+                    return
 
                 m = re.match(r'^/case/(\d+)(/pack|/declaration)?$', path)
                 if m:
@@ -712,6 +761,9 @@ class Handler(BaseHTTPRequestHandler):
 
 
 def main():
+    # Production mode must fail closed until the database, file storage, recovery,
+    # security, regulatory, and data-processing gates are independently evidenced.
+    ops_readiness.require_production_ready()
     dbm.init()
     print(f'CBAM Evidence OS (Control Tower) running at http://{HOST}:{PORT}/')
     print('Admin: ' + os.getenv('CBAM_ADMIN_EMAIL', 'admin@example.com'))

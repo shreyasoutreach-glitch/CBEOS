@@ -51,3 +51,14 @@ Independently challenge the exact CBEOS release candidate identified by commit S
 ## Independence boundary
 
 A green software test run does not prove legal correctness. Antigravity verification is not a legal opinion, regulator approval, accredited verifier opinion or independent penetration test unless the relevant qualified scope is separately commissioned and documented.
+
+## Client-outcomes megasprint hand-off (10 October 2026)
+
+- PR: https://github.com/shreyasoutreach-glitch/CBEOS/pull/1
+- Branch: meg-sprint/client-outcome-closeout-2026-10-10
+- Scope: outcome-first dashboard, sandbox boundary, guided navigation to cases/suppliers/exceptions/verification, tenant-derived action snapshot, dashboard regression assertions, corrected evidence status, and client demo runbook.
+- Before review, record the exact PR head SHA from GitHub. Do not assume the main branch's prior green run validates this branch.
+- Start with CLIENT_DEMO_RUNBOOK.md and MEGASPRINT_CLIENT_OUTCOMES.md. Test the synthetic operator journey and report dead ends, misleading status labels, untraceable claims, accessibility issues, broken routes and high-impact security defects.
+- Important correction: the full 14,627-row legal source reconciliation is NOT VERIFIED AS EXECUTED from reproducible evidence available to this hand-off. Do not confirm it as complete. Inspect the reconciler, execute it against the actual source archive and original workbooks if those artifacts are available, preserve logs/output, and report exact coverage and limitations. Do not infer that all rows match.
+- Golden arithmetic fixtures do not establish legal source provenance or complete regulatory correctness. No legal dataset is approved/promoted; do not enable live liability/filing reliance.
+- Do not deploy, promote data, send client outreach, or silently hide findings. Deliver a severity-ranked finding register with reproduction steps, file/line, impact, minimal fix and regression test. Rerun affected tests after any fix.
