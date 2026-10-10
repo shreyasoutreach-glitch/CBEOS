@@ -1,5 +1,6 @@
 """Supplier status must reflect confirmed delivery, not an attempted send."""
 import os
+import json
 import sys
 import tempfile
 import unittest
@@ -69,10 +70,44 @@ class SupplierDeliveryTests(unittest.TestCase):
         self.assertEqual(row["status"], "SENT")
         self.assertTrue(row["sent_at"])
         audit = self.c.execute(
-            "SELECT COUNT(*) FROM audit WHERE case_id=? AND action='supplier_request_sent'",
+            "SELECT COUNT(*) FROM audit WHERE case_id=? AND action='supplier_request_accepted_by_provider'",
             (self.cid,),
         ).fetchone()[0]
         self.assertEqual(audit, 1)
+
+    def test_resend_adapter_posts_only_after_human_trigger_and_records_acceptance(self):
+        class Response:
+            status = 200
+            def __enter__(self): return self
+            def __exit__(self, *_): return False
+            def read(self, limit=-1): return b'{"id":"msg_test_123"}'[:limit]
+
+        old_key = os.environ.get("RESEND_API_KEY")
+        old_sender = os.environ.get("CBAM_EMAIL_FROM")
+        os.environ["RESEND_API_KEY"] = "test-key-not-real"
+        os.environ["CBAM_EMAIL_FROM"] = "cbeos@example.test"
+        try:
+            with patch("app.supplier_ops.urllib.request.urlopen", return_value=Response()) as call:
+                result = supplier_ops.notify_supplier({
+                    "supplier_email": "supplier@example.test",
+                    "title": "Request installation data",
+                    "draft": "Please provide the source evidence.",
+                })
+            self.assertTrue(result["accepted"])
+            self.assertEqual(result["status"], "accepted_by_provider")
+            self.assertEqual(result["message_id"], "msg_test_123")
+            request = call.call_args.args[0]
+            self.assertEqual(request.full_url, "https://api.resend.com/emails")
+            self.assertEqual(request.get_header("Authorization"), "Bearer test-key-not-real")
+            payload = json.loads(request.data.decode("utf-8"))
+            self.assertEqual(payload["to"], ["supplier@example.test"])
+            self.assertEqual(payload["from"], "cbeos@example.test")
+        finally:
+            if old_key is None: os.environ.pop("RESEND_API_KEY", None)
+            else: os.environ["RESEND_API_KEY"] = old_key
+            if old_sender is None: os.environ.pop("CBAM_EMAIL_FROM", None)
+            else: os.environ["CBAM_EMAIL_FROM"] = old_sender
+
 
 
 if __name__ == "__main__":
