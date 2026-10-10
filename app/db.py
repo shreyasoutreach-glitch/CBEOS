@@ -620,8 +620,6 @@ def init():
     c = db()
     c.executescript(SCHEMA)
     c.executescript(TENANT_TRIGGERS)
-    if getattr(c, 'is_postgres', False):
-        _install_postgres_tenant_guards(c)
     c.executescript("""
     CREATE TRIGGER IF NOT EXISTS agent_runs_tenant_insert
     BEFORE INSERT ON agent_runs
