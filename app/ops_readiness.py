@@ -17,12 +17,8 @@ def _enabled(name: str) -> bool:
     return os.getenv(name, "").strip().lower() in _TRUE
 
 
-def production_blockers() -> list[str]:
-    """Return machine-readable blocker codes without exposing secrets or file contents."""
-    mode = os.getenv("CBAM_CUSTOMER_DATA_MODE", "sandbox").strip().lower()
-    if mode != "production":
-        return []
-
+def _production_blockers() -> list[str]:
+    """Return all production gate blockers, even while the service runs as a sandbox."""
     blockers: list[str] = []
 
     # Current db.py only implements SQLite. A DATABASE_URL by itself does not
@@ -64,10 +60,17 @@ def production_blockers() -> list[str]:
     return blockers
 
 
+def production_blockers() -> list[str]:
+    """Return blockers that must stop startup when production mode is requested."""
+    if os.getenv("CBAM_CUSTOMER_DATA_MODE", "sandbox").strip().lower() != "production":
+        return []
+    return _production_blockers()
+
+
 def customer_data_snapshot() -> dict:
     """Safe, secret-free operational status for admin diagnostics."""
     mode = os.getenv("CBAM_CUSTOMER_DATA_MODE", "sandbox").strip().lower()
-    blockers = production_blockers()
+    blockers = _production_blockers()
     return {
         "mode": mode,
         "production_allowed": mode == "production" and not blockers,
