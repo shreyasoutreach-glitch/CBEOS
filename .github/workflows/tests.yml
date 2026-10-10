@@ -16,7 +16,7 @@ jobs:
       - run: python -m compileall -q app tools tests
       - run: python tests/run_all.py
       - name: Smoke-test deployed Render sandbox
-        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/meg-sprint/verified-client-outcomes-2026-10-10'
+        if: ${{ (github.event_name != 'pull_request' && github.ref == 'refs/heads/meg-sprint/verified-client-outcomes-2026-10-10') || (github.event_name == 'pull_request' && github.head_ref == 'meg-sprint/verified-client-outcomes-2026-10-10') }}
         timeout-minutes: 12
         env:
           BASE_URL: https://cbeos-sandbox.onrender.com
