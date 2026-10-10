@@ -58,9 +58,9 @@ class RecoveryWorkbookTests(unittest.TestCase):
         self.assertEqual(wb["Supplier Follow-up"].max_row, 2)
         self.assertEqual(wb["Document Register"].max_row, 2)
         # Untrusted text must remain a literal string, not an Excel formula.
-        self.assertEqual(wb["Read Me & Summary"]["B2"].value, "Acme Imports")
+        self.assertEqual(wb["Read Me & Summary"]["B2"].value, "'=CMD(1)")
         self.assertEqual(wb["Read Me & Summary"]["B2"].data_type, "s")
-        self.assertEqual(wb["Read Me & Summary"]["B3"].value, "'=CMD(1)")
+        self.assertEqual(wb["Read Me & Summary"]["B3"].value, "Acme Imports")
         self.assertEqual(wb["Read Me & Summary"]["B3"].data_type, "s")
         self.assertNotIn("No legal", str(list(wb["Read Me & Summary"].values)))
         wb.close()
