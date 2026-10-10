@@ -213,16 +213,6 @@ def build_recovery_workbook(c, tenant_id, case_id):
         metrics.append([_safe(v) for v in row])
     metrics.freeze_panes = "A2"
     metrics.sheet_view.showGridLines = False
-    for cell in metrics[1]:
-        cell.fill = header_fill
-        cell.font = header_font
-        cell.alignment = Alignment(vertical="top", wrap_text=True)
-    for row in metrics.iter_rows(min_row=2):
-        for cell in row:
-            cell.alignment = Alignment(vertical="top", wrap_text=True)
-    for col, width in {"A": 46, "B": 25, "C": 25, "D": 28, "E": 78}.items():
-        metrics.column_dimensions[col].width = width
-    metrics.auto_filter.ref = "A1:E7"
 
     sheet("Document Register", [
         "Document ID", "Filename", "Document type", "Status", "Scan status",
@@ -256,6 +246,10 @@ def build_recovery_workbook(c, tenant_id, case_id):
                 width = min(max(max(values or [12]) + 2, 12), 42)
                 ws.column_dimensions[get_column_letter(col_idx)].width = width
             ws.auto_filter.ref = ws.dimensions
+
+    for col, width in {"A": 46, "B": 25, "C": 25, "D": 28, "E": 78}.items():
+        metrics.column_dimensions[col].width = width
+    metrics.auto_filter.ref = "A1:E7"
 
     out = BytesIO()
     wb.save(out)
