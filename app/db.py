@@ -9,6 +9,7 @@ Design rules carried over from v1.0 and extended:
    evidence-state machine in engine.py. This module only stores rows.
 """
 import os
+import re
 import sqlite3
 from decimal import Decimal
 
