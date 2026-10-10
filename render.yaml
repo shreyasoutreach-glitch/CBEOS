@@ -14,6 +14,8 @@ services:
         sync: false
       - key: CBAM_ADMIN_PASSWORD
         sync: false
+      - key: CBAM_CUSTOMER_DATA_MODE
+        value: sandbox
       - key: CBAM_DB_PATH
         value: /tmp/cbeos-sandbox.db
       - key: CBAM_UPLOAD_DIR
