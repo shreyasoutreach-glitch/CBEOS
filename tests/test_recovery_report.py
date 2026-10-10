@@ -61,8 +61,8 @@ class RecoveryWorkbookTests(unittest.TestCase):
         self.assertIn("Suggested owner role", [cell.value for cell in wb["Open Exceptions"][1]])
         self.assertIn("Request the installation-level verification report",
                       wb["Evidence Gaps"].cell(row=2, column=9).value)
-        self.assertIn("Request the installation-level verification report",
-                      wb["Open Exceptions"].cell(row=2, column=11).value)
+        self.assertEqual(wb["Open Exceptions"].cell(row=2, column=11).value,
+                         "Request report from supplier")
         self.assertEqual(wb["Supplier Follow-up"].max_row, 2)
         self.assertEqual(wb["Document Register"].max_row, 2)
         # Untrusted text must remain a literal string, not an Excel formula.
