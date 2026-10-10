@@ -22,15 +22,16 @@ Reasons:
 
 ### Fix shipped in this iteration
 
-Added an authenticated, tenant-scoped **Recovery Workbook (XLSX)** download to each case. It creates six handoff sheets:
+Added an authenticated, tenant-scoped **Recovery Workbook (XLSX)** download to each case. It creates seven handoff sheets:
 - Read Me & Summary
 - Import Lines
 - Evidence Gaps
 - Open Exceptions
 - Supplier Follow-up
 - Document Register
+- Pilot Measurement, a blank baseline-versus-result worksheet for staff hours, elapsed days, open gaps, open exceptions, supplier response rate and reviewer rework.
 
-The gap and exception sheets now include a suggested owner role and a category-specific next action. The workbook escapes formula-like untrusted strings, excludes raw extracted document text and credentials, and states that it is an operational handoff, not a legal opinion or compliance certificate. Unit and HTTP journey tests are included in CI.
+The gap and exception sheets now include a suggested owner role and a category-specific next action. The pilot worksheet deliberately does not invent savings; baseline and result values must be measured. The workbook escapes formula-like untrusted strings, excludes raw extracted document text and credentials, and states that it is an operational handoff, not a legal opinion or compliance certificate. Unit and HTTP journey tests are included in CI.
 
 This is a better deliverable, not yet proof of customer willingness to pay.
 
