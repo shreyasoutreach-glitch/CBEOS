@@ -35,11 +35,14 @@ Resend is supported for the explicit supplier-request Send action. Set `RESEND_A
 
 Authenticated, read-only endpoint: `GET /api/integrations`.
 
+Admin-only live probe: `GET /api/integrations/probe`. This performs bounded authenticated GET requests to the configured model provider's `/models` endpoint and Resend's `/domains` endpoint. It returns status codes only, never credentials or provider response bodies. It sends no email and does not prove model generation or email delivery. Use it deliberately, not as a high-frequency health check.
+
 It reports:
 - whether the model endpoint is configured (not whether a live request has succeeded),
 - whether the local knowledge index and manifest hash agree,
 - whether supplier messaging and CBAM Registry writes are connected,
-- whether live client-data processing is enabled.
+- whether live client-data processing is enabled, including explicit production blockers;
+- live provider probe status when an authorized admin invokes the probe endpoint.
 
 The endpoint must never include credentials. Keep it behind application authentication.
 
