@@ -83,9 +83,15 @@ def status_snapshot() -> dict:
         "model_provider": _model_status(),
         "regulatory_knowledge": _knowledge_status(),
         "supplier_messaging": {
-            "status": "not_connected",
-            "configured": False,
-            "scope": "drafting/tracking only; no supplier messages are sent",
+            "status": "configured_not_live_tested" if (
+                os.getenv("RESEND_API_KEY", "").strip() and os.getenv("CBAM_EMAIL_FROM", "").strip()
+            ) else "not_configured",
+            "configured": bool(
+                os.getenv("RESEND_API_KEY", "").strip() and os.getenv("CBAM_EMAIL_FROM", "").strip()
+            ),
+            "provider": "resend",
+            "delivery_confirmation": "not_implemented",
+            "scope": "only the authenticated human Send action invokes the provider; provider acceptance is not confirmed delivery",
         },
         "external_cbam_registry": {
             "status": "not_connected",
