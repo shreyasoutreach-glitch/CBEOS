@@ -24,6 +24,7 @@ SUITES = [
     'test_ops_readiness.py',
     'test_integration_probes.py',
     'test_recovery_report.py',
+    'test_storage.py',
 ]
 results = []
 for suite in SUITES:
