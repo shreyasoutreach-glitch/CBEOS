@@ -72,8 +72,15 @@ def send_request(c, tid, req_id, uid):
     r = c.execute('SELECT * FROM supplier_requests WHERE id=? AND tenant_id=?', (req_id, tid)).fetchone()
     if not r:
         return False, 'Not found'
-    notify_supplier(r)
-    c.execute("UPDATE supplier_requests SET status='SENT',sent_at=?,updated=? WHERE id=?", (util.now(), util.now(), req_id))
+    delivery = notify_supplier(r)
+    if not delivery.get('delivered'):
+        # A workflow state must never imply an external side effect that did not happen.
+        # Keep the draft editable and auditable until a real transport confirms delivery.
+        audit(c, tid, r['case_id'], uid, 'supplier_request_delivery_not_configured',
+              f"request={req_id}; transport={delivery.get('transport', 'unknown')}")
+        return False, 'No supplier email transport is configured; the request remains a draft and was not sent.'
+    c.execute("UPDATE supplier_requests SET status='SENT',sent_at=?,updated=? WHERE id=? AND tenant_id=?",
+              (util.now(), util.now(), req_id, tid))
     audit(c, tid, r['case_id'], uid, 'supplier_request_sent', str(req_id))
     return True, ''
 
