@@ -15,7 +15,9 @@ class OperationalReadinessTests(unittest.TestCase):
             snapshot = ops_readiness.customer_data_snapshot()
             self.assertEqual(snapshot["status"], "sandbox_only")
             self.assertFalse(snapshot["production_allowed"])
-            self.assertEqual(snapshot["blockers"], [])
+            self.assertIn("postgres_backend_not_implemented", snapshot["blockers"])
+            self.assertIn("object_storage_backend_not_implemented", snapshot["blockers"])
+            self.assertEqual(ops_readiness.production_blockers(), [])
 
     def test_production_mode_reports_missing_storage_and_approvals(self):
         env = {
