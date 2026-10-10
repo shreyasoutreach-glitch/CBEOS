@@ -16,9 +16,10 @@ from . import util
 
 BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA = os.path.join(BASE, 'data')
-UP = os.path.join(DATA, 'uploads')
+UP = os.getenv('CBAM_UPLOAD_DIR', os.path.join(DATA, 'uploads'))
 DB_PATH = os.getenv('CBAM_DB_PATH', os.path.join(DATA, 'cbam.db'))
 os.makedirs(UP, exist_ok=True)
+os.makedirs(os.path.dirname(os.path.abspath(DB_PATH)), exist_ok=True)
 
 SCHEMA = '''
 PRAGMA foreign_keys=ON;
