@@ -15,7 +15,7 @@ class OperationalReadinessTests(unittest.TestCase):
             snapshot = ops_readiness.customer_data_snapshot()
             self.assertEqual(snapshot["status"], "sandbox_only")
             self.assertFalse(snapshot["production_allowed"])
-            self.assertIn("postgres_backend_not_implemented", snapshot["blockers"])
+            self.assertIn("database_backend_not_postgres", snapshot["blockers"])
             self.assertIn("document_storage_not_durable", snapshot["blockers"])
             self.assertEqual(ops_readiness.production_blockers(), [])
 
@@ -52,9 +52,9 @@ class OperationalReadinessTests(unittest.TestCase):
             "CBAM_REGULATORY_DATA_APPROVED": "true",
         }
         with patch.dict(os.environ, env, clear=True):
-            # Even all approval flags cannot bypass missing implementations.
+            # Even all approval flags cannot bypass a live database connection test.
             blockers = ops_readiness.production_blockers()
-            self.assertIn("postgres_backend_not_implemented", blockers)
+            self.assertIn("database_connection_not_verified", blockers)
             self.assertIn("object_storage_configuration_not_verified", blockers)
             self.assertFalse(ops_readiness.customer_data_snapshot()["production_allowed"])
 
