@@ -24,6 +24,48 @@ def _safe(value):
     return value
 
 
+def _owner_role(category, scope_type="case"):
+    roles = {
+        "commercial": "Procurement / accounts payable",
+        "invoice": "Procurement / accounts payable",
+        "shipping": "Logistics / customs broker",
+        "classification": "Customs broker / trade compliance",
+        "customs": "Customs broker / trade compliance",
+        "installation": "Supplier plant contact",
+        "activity": "Supplier plant / operations",
+        "emissions": "Supplier sustainability / plant",
+        "energy": "Supplier energy / plant",
+        "methodology": "CBAM compliance owner",
+        "carbon_price": "Finance / tax",
+        "free_allocation": "CBAM compliance owner",
+        "verification": "Supplier plant + accredited verifier",
+        "supplier": "Procurement / supplier relationship owner",
+    }
+    return roles.get(str(category or "").casefold(),
+                     "CBAM compliance owner" if scope_type == "case" else "Case owner")
+
+
+def _next_action(category):
+    actions = {
+        "commercial": "Attach the invoice and reconcile quantity, product description and invoice reference.",
+        "invoice": "Attach the invoice and reconcile quantity, product description and invoice reference.",
+        "shipping": "Request the bill of lading, packing list or shipment record and match it to the import line.",
+        "classification": "Have the customs broker confirm the applicable CN/TARIC code and record the source used.",
+        "customs": "Attach the customs declaration and reconcile the declared code, origin and net mass.",
+        "installation": "Confirm the producing installation identity and link supporting supplier evidence.",
+        "activity": "Request the activity/production records and reconcile period, unit and production volume.",
+        "emissions": "Request the installation emissions calculation and its underlying activity data.",
+        "energy": "Request electricity/energy activity records and document the calculation boundary.",
+        "methodology": "Confirm the applicable calculation method and document why it applies to this product and period.",
+        "carbon_price": "Request evidence of carbon price legally paid and any rebate or compensation.",
+        "free_allocation": "Review the applicable benchmark and free-allocation adjustment with a qualified reviewer.",
+        "verification": "Request the installation-level verification report and confirm verifier status and scope.",
+        "supplier": "Confirm the accountable supplier contact and send a scoped evidence request.",
+    }
+    return actions.get(str(category or "").casefold(),
+                       "Confirm applicability, assign an owner and due date, then attach source evidence.")
+
+
 def _rows(c, sql, args):
     return [dict(row) for row in c.execute(sql, args).fetchall()]
 
@@ -133,17 +175,20 @@ def build_recovery_workbook(c, tenant_id, case_id):
 
     sheet("Evidence Gaps", [
         "Requirement ID", "Requirement", "Category", "Applicability", "Status",
-        "Scope type", "Scope ID", "Why / review note", "Last updated"
+        "Scope type", "Scope ID", "Suggested owner role", "Suggested next action",
+        "Why / review note", "Last updated"
     ], [[r["id"], r["name"], r["category"], r["applicability"], r["status"],
-          r["scope_type"], r["scope_id"], r["reason"], r["updated"]] for r in gaps])
+          r["scope_type"], r["scope_id"], _owner_role(r["category"], r["scope_type"]),
+          _next_action(r["category"]), r["reason"], r["updated"]] for r in gaps])
 
     sheet("Open Exceptions", [
         "Exception ID", "Title", "Category", "Severity", "Status", "Entity type",
-        "Entity ID", "Detail", "Field", "Recommended next action", "Owner",
+        "Entity ID", "Detail", "Field", "Suggested owner role", "Recommended next action", "Owner",
         "Deadline", "Source", "Last updated"
     ], [[r["id"], r["title"], r["category"], r["severity"], r["status"],
           r["affected_entity_type"], r["affected_entity_id"], r["detail"],
-          r["field"], r["recommended_action"], r["owner"], r["deadline"],
+          r["field"], _owner_role(r["category"], r["affected_entity_type"] or "case"),
+          r["recommended_action"] or _next_action(r["category"]), r["owner"], r["deadline"],
           r["source"], r["updated"]] for r in exceptions])
 
     sheet("Supplier Follow-up", [
