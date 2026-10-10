@@ -28,3 +28,29 @@
 - [ ] Findings triaged, fixes regression-tested and verification rerun.
 - [ ] Production smoke tests and rollback path pass.
 - [ ] Release owner approves go-live.
+
+
+## Live engineering status — 2026-10-11
+
+### Verified in repository / CI evidence
+- Public sandbox remote smoke test passed on the earlier deployed candidate: `/healthz`, `/readyz`, `/login`, and unauthenticated redirect.
+- The source-governance report documents machine comparison of 14,627 staged rows to extracted EUR-Lex cells with zero reported mismatches. This is **not** legal approval; see `docs/ROW_LEVEL_RECONCILIATION_AND_GOLDEN_REVIEW.md`.
+- `app/ops_readiness.py` now blocks production mode while required controls are open. It explicitly refuses to treat environment flags as a real PostgreSQL or object-storage implementation.
+- The Render blueprint pins `CBAM_CUSTOMER_DATA_MODE=sandbox` and `/readyz` as its health-check path. Existing Render service settings still need confirmation in the dashboard.
+- An admin-only `GET /api/integrations/probe` has been added. It performs bounded authenticated GET checks for configured model-provider and Resend endpoints, returns status codes only, and sends no email. This code-level capability is not evidence that the live credentials work.
+
+### Still a hard NO-GO for customer production data
+- PostgreSQL is not implemented by the runtime database module; it remains SQLite-specific.
+- Object storage is not implemented; uploads use local filesystem paths.
+- No off-host restore drill, approved malware-scanning integration, shared rate limiter, independent security review, approved retention/data-processing controls, or regulatory promotion sign-off is evidenced.
+- The new operational-safety and provider-probe tests must pass on the latest candidate commit before considering the code change stable.
+- Live integration probes must be run by an authorized administrator in the deployed environment. No outbound email is sent by the probe; actual delivery requires a separate controlled test and delivery webhook work.
+
+### Required next acceptance criteria
+1. Implement and test a real PostgreSQL adapter/migration for every schema and query dependency; do not merely set `DATABASE_URL`.
+2. Implement durable object storage, content hashing, access-controlled downloads, deletion/retention behavior, and a malware scanning integration.
+3. Prove backup/restore and redeploy survival in a separate test environment.
+4. Re-run full CI, remote smoke and authenticated synthetic end-to-end workflow at the exact head commit.
+5. Run provider probes on Render with real credentials; then separately test a controlled model request and a single internal-recipient email with delivery confirmation.
+6. Complete independent legal review of extracted tables, effective dates, fallback and route semantics, and obtain sign-off before promoting any canonical dataset.
+7. Obtain independent security/privacy review and documented owner approval before changing the environment out of sandbox mode.
