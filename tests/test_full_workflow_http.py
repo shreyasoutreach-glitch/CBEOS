@@ -138,6 +138,14 @@ class FullWorkflowHTTPTests(unittest.TestCase):
                       report_headers.get("Content-Type", ""))
         self.assertIn(f"cbeos-recovery-case-{case_id}.xlsx",
                       report_headers.get("Content-Disposition", ""))
+        audit_db = dbm.db()
+        try:
+            self.assertTrue(audit_db.execute(
+                "SELECT 1 FROM audit WHERE tenant_id=? AND case_id=? AND action='recovery_workbook_exported'",
+                (1, case_id),
+            ).fetchone())
+        finally:
+            audit_db.close()
 
         status, _, detail = self.request("GET", case_path, cookie=cookie)
         self.assertEqual(status, 200)
