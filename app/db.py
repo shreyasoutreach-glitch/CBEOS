@@ -534,7 +534,7 @@ class _PostgresConnection:
 
     def executescript(self, script):
         # SQLite trigger scripts contain internal semicolons; PostgreSQL equivalents are installed separately.
-        if re.search(r'CREATE\\s+TRIGGER\\b', script, re.I):
+        if re.search(r'CREATE\s+TRIGGER\b', script, re.I):
             return
         for statement in _split_sql_statements(script):
             clean = statement.lstrip()
