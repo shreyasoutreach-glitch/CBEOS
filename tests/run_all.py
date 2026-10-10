@@ -15,6 +15,7 @@ SUITES = [
     'test_demo_render_regression.py',
     'test_dashboard_http_journey.py',
     'test_full_workflow_http.py',
+    'test_render_runtime.py',
     'test_legal_data_pipeline.py',
     'test_eurlex_table_extraction.py',
     'test_source_governance.py',
