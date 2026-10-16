@@ -41,7 +41,7 @@ class PostgresAdapterTests(unittest.TestCase):
         instead of succeeding quietly. The names are checked independently, so
         the assertions do not depend on how the message orders its clauses.
         """
-        with patch('app.db.sqlite3.connect') as sqlite_connect, \\
+        with patch('app.db.sqlite3.connect') as sqlite_connect, \
                 patch('app.db._PostgresConnection') as postgres_connection:
             with self.assertRaises(RuntimeError) as raised:
                 db()
@@ -50,6 +50,7 @@ class PostgresAdapterTests(unittest.TestCase):
             self.assertIn(name, message)
         sqlite_connect.assert_not_called()
         postgres_connection.assert_not_called()
+
     def test_script_splitter_ignores_semicolons_in_comments_and_strings(self):
         sql = "-- comment; should not split\nCREATE TABLE demo (value TEXT DEFAULT 'a;b');\nCREATE INDEX demo_idx ON demo(value);"
         parts = _split_sql_statements(sql)
@@ -73,7 +74,7 @@ class PostgresAdapterTests(unittest.TestCase):
             CBAM_DB_BACKEND='sqlite',
             DATABASE_URL='postgresql://not-used',
         ):
-            with patch('app.db.DB_PATH', ':memory:'), \\
+            with patch('app.db.DB_PATH', ':memory:'), \
                     patch('app.db._PostgresConnection') as postgres_connection:
                 connection = db()
                 try:
@@ -113,7 +114,7 @@ class PostgresAdapterTests(unittest.TestCase):
             CBAM_DB_BACKEND='postgres',
             CBAM_DATABASE_URL='postgresql://not-used',
         ):
-            with patch('app.db.sqlite3.connect') as sqlite_connect, \\
+            with patch('app.db.sqlite3.connect') as sqlite_connect, \
                     patch('app.db._PostgresConnection') as postgres_connection:
                 connection = db()
         postgres_connection.assert_called_once_with('postgresql://not-used')
