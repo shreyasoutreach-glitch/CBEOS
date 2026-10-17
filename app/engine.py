@@ -323,6 +323,19 @@ def implausibility_checks(c, tid, cid):
     return findings
 
 
+def _auto_resolve_exception(c, tid, cid, uid, exception_id, resolution, reason):
+    """Close an open exception and append the transition to the tenant audit chain."""
+    cur = c.execute(
+        "UPDATE exceptions SET status='RESOLVED',resolution=?,updated=? "
+        "WHERE id=? AND tenant_id=? AND case_id=? AND status='OPEN'",
+        (resolution, util.now(), exception_id, tid, cid),
+    )
+    if cur.rowcount:
+        audit(c, tid, cid, uid, 'exception_auto_resolved',
+              f'{exception_id}:OPEN->RESOLVED:{reason}')
+    return cur.rowcount > 0
+
+
 def run_reconciliation(c, tid, cid, uid):
     """The reconciliation pass: run on every case-detail load and after every
     upload/edit. Opens exceptions for new conflicts, auto-closes exceptions
@@ -357,11 +370,14 @@ def run_reconciliation(c, tid, cid, uid):
                                    field=field, detail=f"Different non-rejected values found for {label}: {', '.join(vals)}",
                                    source='reconciliation_engine', owner='reviewer')
 
-    # auto-close conflicts whose condition disappeared
-    for (etype, eid, field), eid_row in open_titles_by_key.items():
+    # Close conflicts whose condition disappeared and record each state change.
+    for (etype, eid, field), exception_id in open_titles_by_key.items():
         if (etype, eid, field) not in seen_keys:
-            c.execute("UPDATE exceptions SET status='RESOLVED',resolution='Auto-resolved: values now consistent.',"
-                       "updated=? WHERE id=?", (t, eid_row))
+            _auto_resolve_exception(
+                c, tid, cid, uid, exception_id,
+                'Auto-resolved: values now consistent.',
+                'reconciliation_condition_cleared',
+            )
 
     for installation_id, iname, msg, sev in implausibility_checks(c, tid, cid):
         existing = c.execute("SELECT id FROM exceptions WHERE tenant_id=? AND case_id=? AND category='implausible_value' "
@@ -381,8 +397,17 @@ def run_reconciliation(c, tid, cid, uid):
                                severity='medium', detail='Extracted facts are not authoritative until a reviewer verifies or rejects them.',
                                source='system', owner='reviewer')
     else:
-        c.execute("UPDATE exceptions SET status='RESOLVED',resolution='Auto-resolved: no candidate facts remain.',updated=? "
-                   "WHERE tenant_id=? AND case_id=? AND title='Candidate facts require review' AND status='OPEN'", (t, tid, cid))
+        candidate_review_rows = c.execute(
+            "SELECT id FROM exceptions WHERE tenant_id=? AND case_id=? "
+            "AND title='Candidate facts require review' AND status='OPEN'",
+            (tid, cid),
+        ).fetchall()
+        for exception in candidate_review_rows:
+            _auto_resolve_exception(
+                c, tid, cid, uid, exception['id'],
+                'Auto-resolved: no candidate facts remain.',
+                'no_candidate_facts_remain',
+            )
 
     sync_requirements(c, tid, cid)
     for r in missing_requirements(c, tid, cid):
@@ -399,8 +424,11 @@ def run_reconciliation(c, tid, cid, uid):
         still_missing = c.execute("SELECT 1 FROM evidence_requirements WHERE tenant_id=? AND case_id=? AND name=? "
                                     "AND status='missing' AND applicability!='not_applicable'", (tid, cid, req_name)).fetchone()
         if not still_missing:
-            c.execute("UPDATE exceptions SET status='RESOLVED',resolution='Auto-resolved: evidence now on file.',updated=? "
-                       "WHERE id=?", (t, r['id']))
+            _auto_resolve_exception(
+                c, tid, cid, uid, r['id'],
+                'Auto-resolved: evidence now on file.',
+                'missing_evidence_satisfied',
+            )
 
 
 # ---------------------------------------------------------------------------
