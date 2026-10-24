@@ -22,7 +22,12 @@ def fixture_db():
     CREATE TABLE exceptions(id INTEGER, tenant_id INTEGER, case_id INTEGER, title TEXT, category TEXT, severity TEXT, status TEXT, affected_entity_type TEXT, affected_entity_id INTEGER, detail TEXT, field TEXT, recommended_action TEXT, owner TEXT, deadline TEXT, source TEXT, updated TEXT);
     CREATE TABLE supplier_requests(id INTEGER, tenant_id INTEGER, case_id INTEGER, supplier_id INTEGER, title TEXT, requirement_name TEXT, status TEXT, deadline TEXT, sent_at TEXT, responded_at TEXT, escalation_level INTEGER, draft TEXT);
     CREATE TABLE documents(id INTEGER, tenant_id INTEGER, case_id INTEGER, filename TEXT, doc_type TEXT, status TEXT, scan_status TEXT, size_bytes INTEGER, sha256 TEXT, version INTEGER, uploaded TEXT, import_line_id INTEGER, supplier_id INTEGER, installation_id INTEGER);
-    CREATE TABLE facts(id INTEGER, tenant_id INTEGER, document_id INTEGER);
+    CREATE TABLE facts(
+        id INTEGER, tenant_id INTEGER, case_id INTEGER, document_id INTEGER,
+        import_line_id INTEGER, field TEXT, value TEXT, numeric_value TEXT,
+        unit TEXT, normalized_value TEXT, unit_normalized TEXT, conversion_note TEXT,
+        location TEXT, source_excerpt TEXT, confidence TEXT, status TEXT
+    );
     """)
     c.execute("INSERT INTO cases VALUES(1, 7, 'Acme Imports', '=CMD(1)', '2026', 'iron_steel', 'working')")
     c.execute("INSERT INTO suppliers VALUES(10, 7, 'Steel Supplier')")
@@ -33,7 +38,10 @@ def fixture_db():
     c.execute("INSERT INTO exceptions VALUES(60, 7, 1, 'Missing verifier report', 'verification', 'high', 'OPEN', 'import_line', 40, 'No report attached', 'verification', 'Request report from supplier', 'Owner A', '2026-10-20', 'document review', '2026-10-11')")
     c.execute("INSERT INTO supplier_requests VALUES(70, 7, 1, 10, 'Send report', 'verification', 'OVERDUE', '2026-10-10', '', '', 1, 'Please send report')")
     c.execute("INSERT INTO documents VALUES(80, 7, 1, 'report.pdf', 'verification', 'processed', 'clean', 1234, 'abc123', 1, '2026-10-11', 40, 10, 20)")
-    c.execute("INSERT INTO facts VALUES(90, 7, 80)")
+    c.execute(
+        "INSERT INTO facts VALUES(90, 7, 1, 80, 40, 'supplier', 'Steel Supplier', '', '', '', '', '', "
+        "'line 1', 'Supplier: Steel Supplier', 'high', 'candidate')"
+    )
     return c
 
 
@@ -46,7 +54,7 @@ class RecoveryWorkbookTests(unittest.TestCase):
         wb = load_workbook(BytesIO(payload), read_only=True, data_only=True)
         self.assertEqual(wb.sheetnames, [
             "Read Me & Summary", "Import Lines", "Evidence Gaps",
-            "Open Exceptions", "Supplier Follow-up", "Pilot Measurement", "Document Register"
+            "Open Exceptions", "Supplier Follow-up", "Candidate Facts", "Pilot Measurement", "Document Register"
         ])
         summary = list(wb["Read Me & Summary"].values)
         self.assertIn(("Missing evidence requirements", 1), summary)
@@ -64,6 +72,18 @@ class RecoveryWorkbookTests(unittest.TestCase):
         self.assertEqual(wb["Open Exceptions"].cell(row=2, column=11).value,
                          "Request report from supplier")
         self.assertEqual(wb["Supplier Follow-up"].max_row, 2)
+        self.assertEqual(wb["Candidate Facts"].max_row, 2)
+        fact_headers = [cell.value for cell in wb["Candidate Facts"][1]]
+        self.assertIn("Source location", fact_headers)
+        self.assertIn("Source excerpt", fact_headers)
+        self.assertIn("Document SHA-256", fact_headers)
+        fact_row = dict(zip(fact_headers, [cell.value for cell in wb["Candidate Facts"][2]]))
+        self.assertEqual(fact_row["Field"], "supplier")
+        self.assertEqual(fact_row["Value"], "Steel Supplier")
+        self.assertEqual(fact_row["Source location"], "line 1")
+        self.assertEqual(fact_row["Source excerpt"], "Supplier: Steel Supplier")
+        self.assertEqual(fact_row["Review status"], "candidate")
+        self.assertEqual(fact_row["Document SHA-256"], "abc123")
         self.assertEqual(wb["Document Register"].max_row, 2)
         # Untrusted text must remain a literal string, not an Excel formula.
         self.assertEqual(wb["Read Me & Summary"]["B2"].value, "'=CMD(1)")
