@@ -6,11 +6,13 @@ import os
 import re
 import sys
 import tempfile
+from io import BytesIO
 import threading
 import unittest
 import urllib.parse
 from pathlib import Path
 from http.server import ThreadingHTTPServer
+from openpyxl import load_workbook
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
@@ -183,10 +185,62 @@ class FullWorkflowHTTPTests(unittest.TestCase):
             self.assertEqual(doc["filename"], "synthetic-supplier-evidence.txt")
             self.assertEqual(doc["sha256"], hashlib.sha256(fixture).hexdigest())
             self.assertTrue(doc["extracted_text"])
-            self.assertGreaterEqual(c.execute("SELECT COUNT(*) FROM facts WHERE case_id=?", (case_id,)).fetchone()[0], 0)
+            facts = c.execute(
+                "SELECT field,value,document_id,location,source_excerpt,confidence,status "
+                "FROM facts WHERE case_id=? AND document_id=? ORDER BY field",
+                (case_id, doc["id"]),
+            ).fetchall()
+            self.assertEqual(
+                {row["field"] for row in facts},
+                {"installation", "supplier"},
+                "Synthetic upload must extract the expected installation and supplier facts",
+            )
+            facts_by_field = {row["field"]: row for row in facts}
+            self.assertEqual(facts_by_field["supplier"]["value"], "Synthetic Steel Supplier")
+            self.assertEqual(facts_by_field["installation"]["value"], "Demo Plant")
+            for field, expected_location, expected_excerpt in (
+                ("supplier", "line 1", "Supplier: Synthetic Steel Supplier"),
+                ("installation", "line 2", "Installation: Demo Plant"),
+            ):
+                fact = facts_by_field[field]
+                self.assertEqual(fact["document_id"], doc["id"])
+                self.assertEqual(fact["location"], expected_location)
+                self.assertIn(expected_excerpt, fact["source_excerpt"])
+                self.assertEqual(fact["status"], "candidate")
+                self.assertTrue(fact["confidence"])
             before = c.execute("SELECT COUNT(*) FROM documents WHERE case_id=?", (case_id,)).fetchone()[0]
         finally:
             c.close()
+
+        # Re-export after ingestion and verify that the buyer-facing workbook
+        # preserves fact-to-document provenance without auto-verifying facts.
+        status, report_headers, report_body = self.request(
+            "GET", f"/case/{case_id}/recovery-report.xlsx", cookie=cookie
+        )
+        self.assertEqual(status, 200, report_body[:300])
+        workbook = load_workbook(BytesIO(report_body), read_only=True, data_only=True)
+        try:
+            self.assertIn("Candidate Facts", workbook.sheetnames)
+            sheet = workbook["Candidate Facts"]
+            rows = list(sheet.iter_rows(values_only=True))
+            header = rows[0]
+            exported = [dict(zip(header, row)) for row in rows[1:]]
+            self.assertEqual({row["Field"] for row in exported}, {"installation", "supplier"})
+            exported_by_field = {row["Field"]: row for row in exported}
+            self.assertEqual(exported_by_field["supplier"]["Value"], "Synthetic Steel Supplier")
+            self.assertEqual(exported_by_field["installation"]["Value"], "Demo Plant")
+            self.assertEqual(exported_by_field["supplier"]["Source location"], "line 1")
+            self.assertEqual(exported_by_field["installation"]["Source location"], "line 2")
+            self.assertIn("Supplier: Synthetic Steel Supplier",
+                          exported_by_field["supplier"]["Source excerpt"])
+            self.assertIn("Installation: Demo Plant",
+                          exported_by_field["installation"]["Source excerpt"])
+            for row in exported:
+                self.assertEqual(row["Review status"], "candidate")
+                self.assertEqual(row["Document SHA-256"], doc["sha256"])
+                self.assertEqual(row["Document ID"], doc["id"])
+        finally:
+            workbook.close()
 
         # Unsupported file types must be rejected without creating a database row.
         status, _, detail = self.request("GET", case_path, cookie=cookie)
