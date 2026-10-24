@@ -9,6 +9,7 @@ Design rules carried over from v1.0 and extended:
    evidence-state machine in engine.py. This module only stores rows.
 """
 import os
+import re
 import sqlite3
 from decimal import Decimal
 
@@ -16,9 +17,10 @@ from . import util
 
 BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA = os.path.join(BASE, 'data')
-UP = os.path.join(DATA, 'uploads')
+UP = os.getenv('CBAM_UPLOAD_DIR', os.path.join(DATA, 'uploads'))
 DB_PATH = os.getenv('CBAM_DB_PATH', os.path.join(DATA, 'cbam.db'))
 os.makedirs(UP, exist_ok=True)
+os.makedirs(os.path.dirname(os.path.abspath(DB_PATH)), exist_ok=True)
 
 SCHEMA = '''
 PRAGMA foreign_keys=ON;
@@ -417,7 +419,166 @@ def has_permission(role: str, perm: str) -> bool:
     return ROLE_RANK.get(role, 99) <= ROLE_RANK.get(need, 0)
 
 
-def db() -> sqlite3.Connection:
+def _split_sql_statements(sql):
+    """Split simple DDL scripts without treating semicolons in strings/comments as delimiters."""
+    statements, current = [], []
+    single = double = line_comment = block_comment = False
+    i = 0
+    while i < len(sql):
+        ch = sql[i]
+        nxt = sql[i + 1] if i + 1 < len(sql) else ''
+        if line_comment:
+            current.append(ch)
+            if ch == '\n':
+                line_comment = False
+        elif block_comment:
+            current.append(ch)
+            if ch == '*' and nxt == '/':
+                current.append(nxt)
+                i += 1
+                block_comment = False
+        elif single:
+            current.append(ch)
+            if ch == "'" and nxt == "'":
+                current.append(nxt)
+                i += 1
+            elif ch == "'":
+                single = False
+        elif double:
+            current.append(ch)
+            if ch == '"' and nxt == '"':
+                current.append(nxt)
+                i += 1
+            elif ch == '"':
+                double = False
+        elif ch == '-' and nxt == '-':
+            current.extend([ch, nxt])
+            i += 1
+            line_comment = True
+        elif ch == '/' and nxt == '*':
+            current.extend([ch, nxt])
+            i += 1
+            block_comment = True
+        elif ch == "'":
+            current.append(ch)
+            single = True
+        elif ch == '"':
+            current.append(ch)
+            double = True
+        elif ch == ';':
+            statement = ''.join(current).strip()
+            if statement:
+                statements.append(statement)
+            current = []
+        else:
+            current.append(ch)
+        i += 1
+    tail = ''.join(current).strip()
+    if tail:
+        statements.append(tail)
+    return statements
+
+
+def _translate_postgres_sql(statement):
+    """Translate the small, intentional SQLite SQL subset used by the application."""
+    statement = str(statement).strip()
+    ignore_conflict = bool(re.match(r'INSERT\s+OR\s+IGNORE\s+INTO\b', statement, re.I))
+    if ignore_conflict:
+        statement = re.sub(r'^INSERT\s+OR\s+IGNORE\s+INTO\b', 'INSERT INTO', statement, count=1, flags=re.I)
+        statement = statement.rstrip().rstrip(';') + ' ON CONFLICT DO NOTHING'
+    return statement.replace('?', '%s'), ignore_conflict
+
+
+class _PostgresConnection:
+    """Small psycopg2 compatibility layer for the app's existing sqlite-style SQL."""
+    is_postgres = True
+
+    def __init__(self, url):
+        import psycopg2
+        from psycopg2.extras import DictCursor
+        self._psycopg2 = psycopg2
+        self._conn = psycopg2.connect(url, sslmode='require', cursor_factory=DictCursor)
+        self._last_insert_table = None
+
+    def execute(self, sql, params=()):
+        statement = str(sql).strip()
+        table_info = re.match(r'PRAGMA\s+table_info\((\w+)\)', statement, re.I)
+        if re.match(r'PRAGMA\s+(foreign_keys|journal_mode)', statement, re.I):
+            cur = self._conn.cursor()
+            cur.execute('SELECT 1 AS ok')
+            return cur
+        if table_info:
+            cur = self._conn.cursor()
+            cur.execute(
+                "SELECT column_name AS name FROM information_schema.columns "
+                "WHERE table_schema='public' AND table_name=%s ORDER BY ordinal_position",
+                (table_info.group(1).lower(),),
+            )
+            return cur
+        if re.match(r'SELECT\s+last_insert_rowid\s*\(\s*\)', statement, re.I):
+            cur = self._conn.cursor()
+            if not self._last_insert_table:
+                cur.execute('SELECT NULL::bigint AS lastrowid')
+            else:
+                cur.execute(
+                    "SELECT currval(pg_get_serial_sequence(%s, 'id')::regclass) AS lastrowid",
+                    ('public.' + self._last_insert_table,),
+                )
+            return cur
+
+        statement, _ignore_conflict = _translate_postgres_sql(statement)
+        insert = re.match(r'INSERT\s+INTO\s+([a-z_][a-z0-9_]*)', statement, re.I)
+        if insert:
+            self._last_insert_table = insert.group(1).lower()
+        cur = self._conn.cursor()
+        try:
+            cur.execute(statement, params if params else None)
+        except self._psycopg2.IntegrityError as exc:
+            # Preserve the app's existing exception handling contract.
+            raise sqlite3.IntegrityError(str(exc)) from exc
+        return cur
+
+    def executescript(self, script):
+        # SQLite trigger scripts contain internal semicolons; PostgreSQL equivalents are installed separately.
+        if re.search(r'CREATE\s+TRIGGER\b', script, re.I):
+            return
+        for statement in _split_sql_statements(script):
+            clean = statement.lstrip()
+            if not clean or re.match(r'PRAGMA\b', clean, re.I):
+                continue
+            # SQLite trigger definitions are replaced with equivalent PL/pgSQL triggers below.
+            if re.match(r'CREATE\s+TRIGGER\b', clean, re.I):
+                continue
+            statement = re.sub(
+                r'\b([a-z_][a-z0-9_]*)\s+INTEGER\s+PRIMARY\s+KEY\b',
+                r'\1 BIGINT GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY',
+                statement,
+                flags=re.I,
+            )
+            self.execute(statement)
+
+    def commit(self):
+        self._conn.commit()
+
+    def rollback(self):
+        self._conn.rollback()
+
+    def close(self):
+        self._conn.close()
+
+
+def db():
+    database_url = (os.getenv('CBAM_DATABASE_URL') or os.getenv('DATABASE_URL') or '').strip()
+    mode = os.getenv('CBAM_CUSTOMER_DATA_MODE', 'sandbox').strip().lower()
+    backend = os.getenv('CBAM_DB_BACKEND', 'sqlite').strip().lower()
+    if backend == 'postgres':
+        if not database_url:
+            raise RuntimeError('PostgreSQL backend requires CBAM_DATABASE_URL; refusing to fall back to SQLite.')
+        return _PostgresConnection(database_url)
+    if backend != 'sqlite':
+        raise RuntimeError('Unsupported CBAM_DB_BACKEND; refusing to start.')
+    if mode == 'production':
+        raise RuntimeError('Production mode requires CBAM_DATABASE_URL and CBAM_DB_BACKEND=postgres; refusing to use SQLite.')
     c = sqlite3.connect(DB_PATH)
     c.row_factory = sqlite3.Row
     c.execute('PRAGMA foreign_keys=ON')
