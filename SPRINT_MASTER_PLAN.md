@@ -1,10 +1,19 @@
 # CBEOS Sprint Master Plan
 
-Updated: 10 October 2026 (IST). This is a live execution record, not a release certificate.
+Updated: 25 October 2026 (IST). This is a live execution record, not a release certificate.
 
 ## North star
 
 Sell a measurable operational outcome: supplier evidence recovered, conflicts surfaced, blocked import lines made actionable, and a traceable human-review package. The client-facing experience matters more than the volume of internal components. The sandbox must never imply regulatory approval or production readiness that has not been earned.
+
+## Hard execution rule: ship work, not repeated status reports
+
+- No status-only work sessions. Each session must produce a tested product change, a verified customer-ready artifact, or a blocker proven with an attempted fallback. If none happened, say so once and change the execution method.
+- Do not repeat unchanged blocker lists or restate the plan as progress. Carry forward only changed evidence, completed work, failed tests, and the next action.
+- **Commercial acceptance target:** by 31 October 2026, CBEOS must be ready to sell as a narrowly scoped, human-reviewed service, not represented as production-ready SaaS.
+- The minimum sellable package is: (1) a repeatable synthetic demo with source-traceable candidate facts in the exported workbook; (2) an operator runbook and explicit limits; (3) a fixed-scope offer, intake checklist, deliverables, review responsibilities and escalation path; (4) buyer-facing one-pager and personalized outreach draft; (5) clear separation between synthetic-demo readiness and permission to process real customer data.
+- Real customer data stays out until tenant isolation, approved data transfer/storage, access controls, retention/deletion, backup/recovery and security review are verified. If these gates are still open, sell only a discovery/readiness engagement using synthetic examples and customer-described workflows.
+- **Next status request is an acceptance review, not another planning session.** Report the demo/offer against the criteria above with evidence, blockers that actually changed, and a GO/NO-GO. Never label the service sellable merely because documentation exists.
 
 ## Sprint ledger
 
@@ -34,7 +43,7 @@ Sell a measurable operational outcome: supplier evidence recovered, conflicts su
 
 ## Megasprint execution order
 
-1. Outcome-first dashboard and guided navigation (implemented on branch; CI pending).
+1. Strengthen the seeded synthetic journey and exported source provenance; exact-head CI is the acceptance gate.
 2. Truthful release records and reproducible test status (being corrected on branch).
 3. Run dependency audit, compile and full regression suite at the exact branch HEAD; repair failures and rerun.
 4. Exercise synthetic client journey end to end; verify source trace, supplier requests, exceptions, readiness, exports and audit.
@@ -42,7 +51,7 @@ Sell a measurable operational outcome: supplier evidence recovered, conflicts su
 6. Run Antigravity independently against exact SHA and preserve its finding list.
 7. Fix findings and rerun affected tests.
 8. Deploy sandbox only after application/security gates pass; verify deployed login, key flows, health/readiness and rollback.
-9. Prepare a pilot offer with measured operational results, explicit scope, synthetic-data demo, human-review boundary and no unsubstantiated ROI claims.
+9. Close the sellable-service package: scoped offer, intake and data boundary, deliverables, human-review responsibilities, buyer one-pager and outreach draft. Use only measured claims; no invented ROI.
 
 ## Truth labels
 
