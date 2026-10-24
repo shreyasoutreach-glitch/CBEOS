@@ -132,6 +132,17 @@ def build_recovery_workbook(c, tenant_id, case_id):
         WHERE d.tenant_id=? AND d.case_id=? ORDER BY d.id
     """, (tenant_id, case_id))
 
+    facts = _rows(c, """
+        SELECT f.id, f.field, f.value, f.numeric_value, f.unit,
+               f.normalized_value, f.unit_normalized, f.conversion_note,
+               f.location, f.source_excerpt, f.confidence, f.status,
+               f.document_id, d.filename, d.sha256, f.import_line_id
+        FROM facts f
+        JOIN documents d ON d.id=f.document_id AND d.tenant_id=f.tenant_id
+        WHERE f.tenant_id=? AND f.case_id=?
+        ORDER BY f.document_id, f.id
+    """, (tenant_id, case_id))
+
     open_count = len(exceptions)
     overdue_count = sum(1 for r in requests if str(r["status"]).upper() == "OVERDUE")
     wb = Workbook()
@@ -151,7 +162,8 @@ def build_recovery_workbook(c, tenant_id, case_id):
         ("Documents in register", len(documents)),
         ("Purpose", "Actionable operational handoff: missing evidence, unresolved exceptions, supplier follow-up and document traceability."),
         ("Use boundary", "Workflow status only. Not a legal opinion, compliance certification, verified emissions calculation, declaration, or liability figure."),
-        ("Data handling", "Contains case metadata and document register metadata. Share only with authorized case participants."),
+        ("Candidate facts", f"{len(facts)} extracted candidate facts; all remain unverified until a human reviewer approves them."),
+        ("Data handling", "Contains case metadata, document register metadata and excerpts from candidate evidence. Share only with authorized case participants."),
         ("Recommended next step", "Assign an owner and due date to every open gap and exception; confirm source evidence with a qualified reviewer."),
     ]
     for row in summary_rows:
@@ -197,6 +209,17 @@ def build_recovery_workbook(c, tenant_id, case_id):
     ], [[r["id"], r["supplier_name"], r["title"], r["requirement_name"],
           r["status"], r["deadline"], r["sent_at"], r["responded_at"],
           r["escalation_level"], r["draft"]] for r in requests])
+
+    sheet("Candidate Facts", [
+        "Fact ID", "Field", "Value", "Numeric value", "Unit",
+        "Normalized value", "Normalized unit", "Conversion note",
+        "Source location", "Source excerpt", "Confidence", "Review status",
+        "Document ID", "Filename", "Document SHA-256", "Import line ID"
+    ], [[r["id"], r["field"], r["value"], r["numeric_value"], r["unit"],
+          r["normalized_value"], r["unit_normalized"], r["conversion_note"],
+          r["location"], r["source_excerpt"], r["confidence"], r["status"],
+          r["document_id"], r["filename"], r["sha256"], r["import_line_id"]]
+         for r in facts])
 
     metrics = wb.create_sheet("Pilot Measurement")
     metrics_rows = [
