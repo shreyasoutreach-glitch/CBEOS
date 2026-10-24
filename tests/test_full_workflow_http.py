@@ -59,7 +59,11 @@ class FullWorkflowHTTPTests(unittest.TestCase):
             headers["Cookie"] = cookie
         conn.request(method, path, data, headers)
         response = conn.getresponse()
-        result = (response.status, dict(response.getheaders()), response.read().decode("utf-8", "replace"))
+        raw_body = response.read()
+        response_headers = dict(response.getheaders())
+        content_type_response = response.getheader("Content-Type", "")
+        body = raw_body if "spreadsheetml.sheet" in content_type_response else raw_body.decode("utf-8", "replace")
+        result = (response.status, response_headers, body)
         conn.close()
         return result
 
